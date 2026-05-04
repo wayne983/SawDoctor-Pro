@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鋸片醫生診斷系統 | HAWER K&M</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #1D9E75;
+  --green-dark: #0F6E56;
+  --green-light: #E1F5EE;
+  --green-mid: #9FE1CB;
+  --amber: #BA7517;
+  --amber-light: #FAEEDA;
+  --red: #A32D2D;
+  --red-light: #FCEBEB;
+  --gray-900: #1a1a1a;
+  --gray-700: #3d3d3d;
+  --gray-500: #6b6b6b;
+  --gray-300: #c4c4c4;
+  --gray-100: #f5f5f3;
+  --gray-50: #fafaf8;
+  --white: #ffffff;
+  --radius: 8px;
+  --radius-lg: 14px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  background: var(--gray-50);
+  color: var(--gray-900);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* HEADER */
+.header {
+  background: var(--gray-900);
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 2px solid var(--green);
+}
+.header-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: var(--white);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+}
+.header-logo span { color: var(--green); }
+.header-badge {
+  font-size: 11px;
+  background: var(--green);
+  color: var(--white);
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+/* HERO */
+.hero {
+  background: var(--gray-900);
+  color: var(--white);
+  padding: 3rem 2rem 2.5rem;
+  text-align: center;
+  border-bottom: 1px solid #2a2a2a;
+}
+.hero-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--green-mid);
+  font-weight: 500;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.hero h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.2rem, 6vw, 3.8rem);
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
+.hero h1 span { color: var(--green); }
+.hero p {
+  font-size: 14px;
+  color: #aaaaaa;
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* MAIN LAYOUT */
+.main { max-width: 700px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+/* PROGRESS */
+.progress-wrap { margin-bottom: 2rem; }
+.progress-track { height: 3px; background: var(--gray-300); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.5s ease; width: 0%; }
+.progress-label { font-size: 12px; color: var(--gray-500); margin-top: 6px; }
+
+/* SECTION CARD */
+.sec-card {
+  background: var(--white);
+  border: 1px solid #e8e8e4;
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1.25rem;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0ec;
+}
+.sec-num {
+  width: 26px; height: 26px;
+  background: var(--green);
+  color: var(--white);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sec-title { font-size: 14px; font-weight: 700; color: var(--gray-700); letter-spacing: 0.03em; }
+
+/* FIELDS */
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-500);
+  margin-bottom: 5px;
+  letter-spacing: 0.03em;
+}
+.field input, .field select, .field textarea {
+  width: 100%;
+  border: 1px solid #e0e0dc;
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: 'Noto Sans TC', sans-serif;
+  color: var(--gray-900);
+  background: var(--white);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  -webkit-appearance: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+}
+.field textarea { resize: vertical; min-height: 80px; }
+.field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b6b6b' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
+.hint { font-size: 11px; color: var(--gray-300); margin-top: 3px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media(max-width: 480px) {
+  .row2, .row3 { grid-template-columns: 1fr; }
+}
+
+/* TOGGLE BUTTONS */
+.tog-group { display: flex; flex-wrap: wrap; gap: 7px; }
+.tog {
+  padding: 6px 14px;
+  border: 1px solid #e0e0dc;
+  border-radius: 20px;
+  font-size: 13px;
+  font-family: 'Noto Sans TC', sans-serif;
+  cursor: pointer;
+  background: var(--white);
+  color: var(--gray-700);
+  transition: all 0.15s;
+  font-weight: 400;
+}
+.tog:hover { border-color: var(--green); color: var(--green-dark); background: var(--green-light); }
+.tog.on { border-color: var(--green); background: var(--green-light); color: var(--green-dark); font-weight: 500; }
+
+/* UPLOAD */
+.upload-zone {
+  border: 1.5px dashed #d0d0cc;
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--gray-50);
+}
+.upload-zone:hover { border-color: var(--green); background: var(--green-light); }
+.upload-plus { font-size: 28px; color: var(--green); margin-bottom: 6px; line-height: 1; }
+.upload-zone p { font-size: 13px; color: var(--gray-500); }
+.upload-zone .sub { font-size: 11px; color: var(--gray-300); margin-top: 3px; }
+.previews { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.prev-item { position: relative; width: 72px; height: 72px; border-radius: var(--radius); overflow: hidden; border: 1px solid #e0e0dc; }
+.prev-item img { width: 100%; height: 100%; object-fit: cover; }
+.prev-item .del { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; border: none; line-height: 1; }
+
+/* SUBMIT */
+.submit-wrap { margin-top: 1.5rem; }
+.submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Noto Sans TC', sans-serif;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, transform 0.1s;
+}
+.submit-btn:hover { background: var(--green-dark); }
+.submit-btn:active { transform: scale(0.99); }
+.submit-note { font-size: 12px; color: var(--gray-300); text-align: center; margin-top: 10px; }
+
+/* RESULT */
+.result-wrap { display: none; }
+.result-wrap.show { display: block; }
+.loading-card {
+  background: var(--white);
+  border: 1px solid #e8e8e4;
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  text-align: center;
+}
+.loading-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--green-light);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: var(--gray-500); }
+
+/* RESULT CARDS */
+.diag-card {
+  background: var(--white);
+  border: 1px solid #e8e8e4;
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 14px;
+  animation: fadeUp 0.4s ease both;
+}
+.diag-card.delay1 { animation-delay: 0.1s; }
+.diag-card.delay2 { animation-delay: 0.2s; }
+.diag-card.delay3 { animation-delay: 0.3s; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+.sev-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin-bottom: 10px;
+}
+.sev-ok { background: var(--green-light); color: var(--green-dark); }
+.sev-warn { background: var(--amber-light); color: var(--amber); }
+.sev-danger { background: var(--red-light); color: var(--red); }
+.result-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; line-height: 1.4; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--gray-100); color: var(--gray-500); }
+.diag-body { font-size: 13px; color: var(--gray-700); line-height: 1.8; }
+.diag-body p { margin-bottom: 8px; }
+.diag-body p:last-child { margin-bottom: 0; }
+
+.prod-card {
+  background: var(--white);
+  border: 1.5px solid var(--green);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 14px;
+  animation: fadeUp 0.4s ease 0.2s both;
+}
+.prod-eyebrow { font-size: 11px; color: var(--green); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+.prod-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.prod-desc { font-size: 13px; color: var(--gray-500); line-height: 1.7; margin-bottom: 14px; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-primary {
+  display: inline-block;
+  padding: 9px 20px;
+  background: var(--green);
+  color: var(--white);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  font-family: 'Noto Sans TC', sans-serif;
+  transition: background 0.15s;
+  border: none;
+  cursor: pointer;
+}
+.btn-primary:hover { background: var(--green-dark); }
+.btn-outline {
+  display: inline-block;
+  padding: 9px 20px;
+  background: transparent;
+  color: var(--green-dark);
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  font-family: 'Noto Sans TC', sans-serif;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.btn-outline:hover { background: var(--green-light); }
+
+.line-card {
+  background: #f0fbf6;
+  border: 1px solid var(--green-mid);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  animation: fadeUp 0.4s ease 0.3s both;
+  flex-wrap: wrap;
+}
+.line-icon-circle {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: #06C755;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.line-icon-circle svg { width: 26px; height: 26px; fill: #fff; }
+.line-info { flex: 1; min-width: 160px; }
+.line-title { font-size: 14px; font-weight: 700; color: var(--green-dark); margin-bottom: 2px; }
+.line-sub { font-size: 12px; color: #3a7a5e; }
+.btn-line {
+  display: inline-block;
+  padding: 9px 18px;
+  background: #06C755;
+  color: var(--white);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  font-family: 'Noto Sans TC', sans-serif;
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-line:hover { background: #05a849; }
+
+.footer-links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 1rem 0;
+  border-top: 1px solid #f0f0ec;
+  margin-top: 8px;
+  animation: fadeUp 0.4s ease 0.4s both;
+}
+.footer-links a { font-size: 13px; color: var(--green); text-decoration: none; }
+.footer-links a:hover { color: var(--green-dark); text-decoration: underline; }
+.footer-links span { color: var(--gray-300); }
+.reset-btn {
+  background: transparent;
+  border: 1px solid #e0e0dc;
+  border-radius: var(--radius);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-family: 'Noto Sans TC', sans-serif;
+  color: var(--gray-500);
+  cursor: pointer;
+  margin-top: 1rem;
+  display: block;
+  transition: all 0.15s;
+}
+.reset-btn:hover { border-color: var(--gray-500); color: var(--gray-700); }
+
+/* FOOTER */
+.page-footer {
+  background: var(--gray-900);
+  color: #888;
+  font-size: 12px;
+  text-align: center;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  line-height: 1.8;
+}
+.page-footer a { color: var(--green-mid); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a href="https://www.hawer-knife.com" class="header-logo">HAWER <span>鋸片醫生</span></a>
+  <span class="header-badge">ISO 認證診療系統</span>
+</header>
+
+<div class="hero">
+  <p class="hero-eyebrow">Saw Blade Diagnostic System</p>
+  <h1>鋸片 <span>診斷</span> 系統</h1>
+  <p>填寫您的機台與切削資訊，由鋸片醫生為您分析問題根因，並推薦最適合的處方鋸片。</p>
+</div>
+
+<main class="main">
+
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="prog"></div></div>
+    <div class="progress-label" id="prog-label">請填寫以下資訊</div>
+  </div>
+
+  <div id="form-wrap">
+
+    <!-- 1. 機台與鋸片 -->
+    <div class="sec-card">
+      <div class="sec-head">
+        <div class="sec-num">1</div>
+        <div class="sec-title">機台 &amp; 鋸片規格</div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>機台轉速 (RPM)</label>
+          <input type="number" id="rpm" placeholder="例：3000" min="100" max="20000">
+        </div>
+        <div class="field">
+          <label>目前使用鋸片品牌</label>
+          <input type="text" id="brand" placeholder="例：TCT / 台製 / 不知道">
+        </div>
+      </div>
+      <div style="margin-top:4px;margin-bottom:10px;font-size:12px;font-weight:500;color:var(--gray-500);">鋸片規格（外徑 × 齒厚切幅 × 齒數）</div>
+      <div class="row3">
+        <div class="field">
+          <label>外徑 (mm)</label>
+          <input type="number" id="dia" placeholder="例：305">
+          <p class="hint">鋸片直徑</p>
+        </div>
+        <div class="field">
+          <label>切幅 / 齒厚 (mm)</label>
+          <input type="number" id="kerf" placeholder="例：3.0" step="0.1">
+          <p class="hint">鋸縫寬度</p>
+        </div>
+        <div class="field">
+          <label>齒數 (T)</label>
+          <input type="number" id="teeth" placeholder="例：60">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 切削物 -->
+    <div class="sec-card">
+      <div class="sec-head">
+        <div class="sec-num">2</div>
+        <div class="sec-title">切削物資訊</div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>切削材料種類</label>
+          <select id="material">
+            <option value="">請選擇...</option>
+            <option value="hardwood">實木（硬木：柚木、橡木）</option>
+            <option value="softwood">實木（軟木：松木、杉木）</option>
+            <option value="board">木工板 / 夾板 / MDF</option>
+            <option value="plastic">塑膠 / 壓克力</option>
+            <option value="aluminum">鋁合金 / 鋁擠型</option>
+            <option value="aluminum_billet">鋁胚 / 鋁鑄棒 / 鋁錠</option>
+            <option value="steel">鋼材 / 型鋼</option>
+            <option value="stainless">不鏽鋼</option>
+            <option value="gypsum">石膏磚 / 隔間板</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>切削物厚度 (mm)</label>
+          <input type="number" id="thickness" placeholder="例：50">
+        </div>
+      </div>
+      <div class="field">
+        <label>切削物性質（可複選）</label>
+        <div class="tog-group" id="shape-grp">
+          <button class="tog" data-v="管材">管材</button>
+          <button class="tog" data-v="條材">條材</button>
+          <button class="tog" data-v="板材">板材</button>
+          <button class="tog" data-v="塊材">塊材</button>
+          <button class="tog" data-v="異型材">異型材</button>
+        </div>
+      </div>
+      <div class="field" style="margin-top:12px;">
+        <label>切割方向</label>
+        <div class="tog-group" id="cut-grp">
+          <button class="tog" data-v="橫切">橫切</button>
+          <button class="tog" data-v="縱切">縱切</button>
+          <button class="tog" data-v="斜切">斜切</button>
+          <button class="tog" data-v="橫縱混合">橫縱混合</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 困擾 -->
+    <div class="sec-card">
+      <div class="sec-head">
+        <div class="sec-num">3</div>
+        <div class="sec-title">使用困擾</div>
+      </div>
+      <div class="field">
+        <label>有無鋸片困擾？（可複選）</label>
+        <div class="tog-group" id="issue-grp">
+          <button class="tog" data-v="壽命短">壽命短</button>
+          <button class="tog" data-v="鋒利度不足">鋒利度不足</button>
+          <button class="tog" data-v="毛邊多">毛邊多</button>
+          <button class="tog" data-v="切面粗糙">切面粗糙</button>
+          <button class="tog" data-v="切割偏斜">切割偏斜</button>
+          <button class="tog" data-v="發燙冒煙">發燙冒煙</button>
+          <button class="tog" data-v="噪音震動">噪音震動</button>
+          <button class="tog" data-v="進刀速度慢">進刀速度慢</button>
+          <button class="tog" data-v="黏屑塞齒">黏屑塞齒</button>
+          <button class="tog" data-v="暫無困擾">暫無困擾</button>
+        </div>
+      </div>
+      <div class="field" style="margin-top:12px;">
+        <label>補充說明（可選填）</label>
+        <textarea id="note" placeholder="例：每次切柚木塊材，不到20片鋸齒就鈍了；或直接描述您的使用狀況..."></textarea>
+      </div>
+    </div>
+
+    <!-- 4. 照片 -->
+    <div class="sec-card">
+      <div class="sec-head">
+        <div class="sec-num">4</div>
+        <div class="sec-title">照片上傳（選填，更快更準）</div>
+      </div>
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px;">可上傳設備機台、切削物、鋸片照片，讓診斷更精準</p>
+      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-inp').click()">
+        <div class="upload-plus">+</div>
+        <p>點擊選取或拖曳照片至此</p>
+        <p class="sub">支援 JPG、PNG，最多 4 張</p>
+      </div>
+      <input type="file" id="file-inp" accept="image/*" multiple style="display:none">
+      <div class="previews" id="previews"></div>
+    </div>
+
+    <div class="submit-wrap">
+      <button class="submit-btn" onclick="doSubmit()">送出問診單 → 取得 AI 診斷與產品推薦</button>
+      <p class="submit-note">填寫越完整，診斷越精準。或直接上傳照片說明更快喔！</p>
+    </div>
+
+  </div><!-- end form-wrap -->
+
+  <div class="result-wrap" id="result-wrap">
+    <div id="result-inner"></div>
+    <button class="reset-btn" onclick="resetForm()">← 重新填寫問診單</button>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  維翊貿易有限公司 HAWER K&amp;M TRADING CO., LTD.<br>
+  台南市歸仁區忠孝北路133號 ｜ Tel: 06-2305390 ｜
+  <a href="mailto:sales@hawer-knife.com">sales@hawer-knife.com</a><br>
+  <a href="https://www.hawer-knife.com" target="_blank">www.hawer-knife.com</a>
+</footer>
+
+<script>
+// Toggle groups
+['shape-grp','issue-grp'].forEach(id=>{
+  document.getElementById(id).querySelectorAll('.tog').forEach(b=>{
+    b.addEventListener('click',()=>b.classList.toggle('on'));
+  });
+});
+document.getElementById('cut-grp').querySelectorAll('.tog').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.getElementById('cut-grp').querySelectorAll('.tog').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+  });
+});
+
+// Progress
+function updateProgress(){
+  const fields=['rpm','dia','material'];
+  let filled=0;
+  fields.forEach(id=>{const v=document.getElementById(id).value;if(v)filled++;});
+  const issues=document.querySelectorAll('#issue-grp .tog.on').length;
+  if(issues>0) filled++;
+  const pct=Math.round((filled/4)*100);
+  document.getElementById('prog').style.width=pct+'%';
+  document.getElementById('prog-label').textContent=pct===0?'請填寫以下資訊':pct===100?'資訊齊全，可以送出診斷！':`已完成 ${pct}%，繼續填寫更精準`;
+}
+['rpm','dia','material'].forEach(id=>document.getElementById(id).addEventListener('input',updateProgress));
+document.getElementById('issue-grp').addEventListener('click',updateProgress);
+
+// Image upload
+let imgFiles=[];
+const fileInp=document.getElementById('file-inp');
+const prevEl=document.getElementById('previews');
+const dropZ=document.getElementById('drop-zone');
+dropZ.addEventListener('dragover',e=>{e.preventDefault();dropZ.style.borderColor='var(--green)';dropZ.style.background='var(--green-light)';});
+dropZ.addEventListener('dragleave',()=>{dropZ.style.borderColor='';dropZ.style.background='';});
+dropZ.addEventListener('drop',e=>{e.preventDefault();dropZ.style.borderColor='';dropZ.style.background='';addFiles(e.dataTransfer.files);});
+fileInp.addEventListener('change',()=>addFiles(fileInp.files));
+function addFiles(files){
+  Array.from(files).forEach(f=>{
+    if(imgFiles.length>=4||!f.type.startsWith('image/')) return;
+    imgFiles.push(f);
+    const r=new FileReader();
+    r.onload=e=>{
+      const i=imgFiles.length-1;
+      const d=document.createElement('div'); d.className='prev-item';
+      d.innerHTML=`<img src="${e.target.result}" alt="上傳照片"><button class="del" onclick="removeImg(${i})" title="移除">×</button>`;
+      prevEl.appendChild(d);
+    };
+    r.readAsDataURL(f);
+  });
+}
+function removeImg(i){imgFiles.splice(i,1);reRenderPrev();}
+function reRenderPrev(){
+  prevEl.innerHTML='';
+  imgFiles.forEach((f,i)=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const d=document.createElement('div'); d.className='prev-item';
+      d.innerHTML=`<img src="${e.target.result}" alt="上傳照片"><button class="del" onclick="removeImg(${i})" title="移除">×</button>`;
+      prevEl.appendChild(d);
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+function getSel(id){return Array.from(document.getElementById(id).querySelectorAll('.tog.on')).map(b=>b.dataset.v);}
+
+// Product map
+const PRODUCTS={
+  hardwood:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'精密齒型排列，ATB / Hi-ATB 交錯斜齒，針對硬木橫切毛邊優化。淨亮鍍層不黏屑，鎢鋼齒硬度 HRA 90+ 壽命顯著優於一般市售品。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
+  softwood:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'適用軟木縱橫切，精密齒型設計切面光滑，可搭配 HAWER 鋸片診療系統進一步客製規格。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
+  board:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'適用夾板、MDF、木工板，高齒數設計減少層板崩裂，淨亮鍍層防止 MDF 粉塵黏附齒溝。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
+  plastic:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'適用壓克力、PVC、塑料板材，特殊齒角設計防止崩邊與熔邊，切面平整光滑無需二次加工。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
+  aluminum:{name:'HAWER φ255~710 鋁合金用鋸片',desc:'高端熱處理、鋼性升級，避震膠填充實現低分貝切割。適用鋁擠型、鋁管、鋁板、鋁棒，外徑 255~710mm 多規格可選，售後研磨服務完備。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=19#C',tag:'推薦 — 鋁合金系列'},
+  aluminum_billet:{name:'HAWER φ650~1870 鋁胚 / 鋁鑄棒大外徑圓鋸片',desc:'量身訂製搭配機台調性，適用鋁胚、鋁鑄棒、鋁錠、紙軸等大料切割。外徑 650~1870mm，買鋸片送顧問服務，完備售後研磨。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=223#C',tag:'推薦 — 大外徑鋁用系列'},
+  steel:{name:'HAWER φ2100~2200 型鋼冷切 / 熱切鋸片',desc:'大外徑冶金鋼鐵用，冷切與熱切雙系列，新品供應、售後研磨服務完備，適用型鋼工程切割作業。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=192#C',tag:'推薦 — 型鋼 / 鋼鐵系列'},
+  stainless:{name:'日本 14" 鐵 / 不鏽鋼兼用鋸片（低速機）',desc:'日本製造，鐵材與不鏽鋼兼用，適合低速機台，切斷面平整，壽命穩定，適合不鏽鋼管材與型材。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=168#C',tag:'推薦 — 鐵工 / 不鏽鋼系列'},
+  gypsum:{name:'φ500-20吋 石膏磚隔間工程專用鋸片',desc:'全台唯一石膏磚隔間工程專用圓鋸片，切割平整不崩邊，適合室內輕隔間工程現場使用。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=232#C',tag:'推薦 — 石膏磚專用系列'}
+};
+
+function getSeverity(mat,issues){
+  if(issues.includes('發燙冒煙')) return 'danger';
+  if(issues.includes('壽命短')||issues.includes('鋒利度不足')||issues.includes('毛邊多')||issues.includes('切割偏斜')||issues.includes('切面粗糙')) return 'warn';
+  return 'ok';
+}
+
+function buildDiag(data){
+  const lines=[];
+  const{rpm,dia,mat,issues,cuts,note}=data;
+  if(rpm&&dia){
+    const spd=Math.round(Math.PI*parseInt(dia)*parseInt(rpm)/60000);
+    lines.push(`線速度約 <strong>${spd} m/s</strong>${spd>65?'，偏高，請確認鋸片標示最高 RPM 規格，超速使用有安全風險':spd<18?'，偏低，可能影響切削效率與切面品質，建議提高進給速度':'，處於正常切削範圍'}。`);
+  }
+  if(issues.includes('發燙冒煙')){
+    lines.push('<strong>發燙冒煙為高危警訊</strong>，請立即停機！確認轉速未超過鋸片標示 Max RPM，金屬切削請補充冷卻液，木工請檢查是否有樹脂積垢堵塞齒溝。');
+  }
+  if(issues.includes('壽命短')||issues.includes('鋒利度不足')){
+    if(mat==='hardwood'||mat==='aluminum_billet'){
+      lines.push('壽命短主因是硬質材料對鎢鋼耗損大，低硬度齒片幾十刀即鈍化。HAWER 處方鋸片採用 HRA 90+ 高硬度鎢鋼齒，搭配精密研磨，壽命顯著提升。');
+    } else {
+      lines.push('壽命偏短通常與齒片材質、齒型不匹配或使用條件有關，建議對症換用專用鋸片並定期安排研磨保養。');
+    }
+  }
+  if(issues.includes('毛邊多')||issues.includes('切面粗糙')){
+    if(cuts.includes('橫切')&&(mat==='hardwood'||mat==='board')){
+      lines.push('橫切硬木 / 夾板毛邊多，建議使用 <strong>ATB 或 Hi-ATB 交錯斜齒齒型</strong>，齒數維持 60T 以上，並在工件底面墊廢料板輔助支撐出料側。');
+    } else if(mat==='aluminum'){
+      lines.push('鋁材切面粗糙多來自齒型不對或冷卻液不足。鋁用鋸片需採<strong>大正前角大齒距</strong>設計，並補充切削油以防黏屑。');
+    } else {
+      lines.push('切面不良請確認齒型是否符合材料特性，並檢查鋸片安裝偏擺狀況。');
+    }
+  }
+  if(issues.includes('黏屑塞齒')){
+    lines.push('黏屑塞齒多見於鋁材切割，應選用<strong>淨亮抗黏鍍層鋸片</strong>，並搭配切削油；若木材黏屑，可用松香水清洗齒溝後繼續使用。');
+  }
+  if(issues.includes('噪音震動')){
+    lines.push('異常震動請先停機，目視確認鋸片側面是否有彎曲，並檢查法蘭盤螺栓鎖固狀態與安裝偏擺量。若鋸片已彎曲應送修或更換。');
+  }
+  if(issues.includes('切割偏斜')){
+    lines.push('切割跑偏請先校準導尺，並確認鋸片有無側向彎曲；若安裝無誤仍偏斜，代表鋸片本體已變形，需更換。');
+  }
+  if(issues.includes('進刀速度慢')){
+    lines.push('進刀阻力大代表鋸齒已鈍化，繼續強行切割會讓馬達過載並加速磨損，建議立即安排研磨或更換。');
+  }
+  if(lines.length===0){
+    lines.push('根據您的資訊，目前使用狀況基本正常。建議定期觀察鋸齒磨耗狀況，出現進刀阻力增加或切面品質下降時即安排重磨。');
+  }
+  if(note) lines.push(`您的補充說明：${note}`);
+  return lines;
+}
+
+function doSubmit(){
+  const mat=document.getElementById('material').value;
+  const rpm=document.getElementById('rpm').value;
+  const dia=document.getElementById('dia').value;
+  if(!mat&&!rpm&&!dia){alert('請至少填寫切削材料、轉速或鋸片外徑其中一項');return;}
+
+  const data={
+    rpm,dia,
+    kerf:document.getElementById('kerf').value,
+    teeth:document.getElementById('teeth').value,
+    brand:document.getElementById('brand').value,
+    mat,
+    thick:document.getElementById('thickness').value,
+    shapes:getSel('shape-grp'),
+    cuts:getSel('cut-grp'),
+    issues:getSel('issue-grp'),
+    note:document.getElementById('note').value
+  };
+
+  document.getElementById('form-wrap').style.display='none';
+  const rw=document.getElementById('result-wrap');
+  rw.classList.add('show');
+  document.getElementById('result-inner').innerHTML=`
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">鋸片醫生診斷中，請稍候...</div>
+    </div>`;
+  window.scrollTo({top:0,behavior:'smooth'});
+
+  setTimeout(()=>{
+    const issues=data.issues;
+    const sev=getSeverity(data.mat,issues);
+    const lines=buildDiag(data);
+    const prod=PRODUCTS[data.mat]||null;
+    const sevLabel=sev==='ok'?'✓ 狀況正常':sev==='warn'?'⚠ 建議改善':'✕ 高風險，停機檢查';
+    const sevCls='sev-'+sev;
+    const diagTitle=sev==='ok'?'使用狀況良好，維持定期保養':sev==='warn'?'發現潛在問題，建議近期處理':'發現高風險問題，請立即停機';
+
+    const allVals=[
+      rpm&&`${rpm} RPM`,
+      dia&&`φ${dia}mm`,
+      data.kerf&&`切幅 ${data.kerf}mm`,
+      data.teeth&&`${data.teeth}T`,
+      data.brand&&data.brand!==''&&data.brand,
+      mat&&document.getElementById('material').options[document.getElementById('material').selectedIndex].text,
+      data.thick&&`${data.thick}mm`,
+      ...data.shapes,...data.cuts,...issues
+    ].filter(Boolean);
+    const chips=allVals.map(v=>`<span class="chip">${v}</span>`).join('');
+    const diagLines=lines.map(l=>`<p>${l}</p>`).join('');
+    const needLine=sev==='danger'||mat==='aluminum_billet'||mat==='steel'||!prod;
+
+    let html=`
+      <div class="diag-card">
+        <span class="sev-badge ${sevCls}">${sevLabel}</span>
+        <div class="result-title">${diagTitle}</div>
+        <div class="chips">${chips}</div>
+        <div class="diag-body">${diagLines}</div>
+      </div>
+    `;
+
+    if(prod){
+      html+=`
+        <div class="prod-card delay1">
+          <p class="prod-eyebrow">${prod.tag}</p>
+          <p class="prod-name">${prod.name}</p>
+          <p class="prod-desc">${prod.desc}</p>
+          <div class="btn-row">
+            <a href="${prod.url}" class="btn-primary" target="_blank">查看產品詳情 →</a>
+            <a href="https://www.hawer-knife.com/Inquiry_Cart.asp" class="btn-outline" target="_blank">線上詢價</a>
+          </div>
+        </div>
+      `;
+    }
+
+    if(needLine||sev!=='ok'){
+      html+=`
+        <div class="line-card delay2">
+          <div class="line-icon-circle">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+          </div>
+          <div class="line-info">
+            <p class="line-title">需要更精準的客製處方？</p>
+            <p class="line-sub">加入鋸片醫生官方 LINE，由專家直接為您診療</p>
+          </div>
+          <a href="https://line.me/ti/p/%40drhawer" class="btn-line" target="_blank">加入 LINE 諮詢</a>
+        </div>
+      `;
+    }
+
+    html+=`
+      <div class="footer-links delay3">
+        <a href="https://www.hawer-knife.com/Product.asp" target="_blank">瀏覽全部產品</a>
+        <span>|</span>
+        <a href="https://www.hawer-knife.com/Inquiry_Cart.asp" target="_blank">線上詢價</a>
+        <span>|</span>
+        <a href="https://www.hawer-knife.com/Product_sCats.asp?productscatid=541163996242" target="_blank">鋸片醫學誌</a>
+        <span>|</span>
+        <a href="https://www.hawer-knife.com/ProductDetails.asp?produid=199#C" target="_blank">ISO 鋸片診療系統</a>
+      </div>
+    `;
+
+    document.getElementById('result-inner').innerHTML=html;
+  },1200);
+}
+
+function resetForm(){
+  document.getElementById('form-wrap').style.display='block';
+  document.getElementById('result-wrap').classList.remove('show');
+  document.getElementById('result-inner').innerHTML='';
+  imgFiles=[];prevEl.innerHTML='';
+  document.querySelectorAll('.tog.on').forEach(b=>b.classList.remove('on'));
+  ['rpm','dia','kerf','teeth','brand','thickness','note'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('material').value='';
+  document.getElementById('prog').style.width='0%';
+  document.getElementById('prog-label').textContent='請填寫以下資訊';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
