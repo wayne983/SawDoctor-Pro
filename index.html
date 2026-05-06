@@ -7,407 +7,110 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
-:root {
-  --green: #1D9E75;
-  --green-dark: #0F6E56;
-  --green-light: #E1F5EE;
-  --green-mid: #9FE1CB;
-  --amber: #BA7517;
-  --amber-light: #FAEEDA;
-  --red: #A32D2D;
-  --red-light: #FCEBEB;
-  --gray-900: #1a1a1a;
-  --gray-700: #3d3d3d;
-  --gray-500: #6b6b6b;
-  --gray-300: #c4c4c4;
-  --gray-100: #f5f5f3;
-  --gray-50: #fafaf8;
-  --white: #ffffff;
-  --radius: 8px;
-  --radius-lg: 14px;
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-body {
-  font-family: 'Noto Sans TC', sans-serif;
-  background: var(--gray-50);
-  color: var(--gray-900);
-  min-height: 100vh;
-  font-size: 15px;
-  line-height: 1.6;
-}
-.header {
-  background: var(--gray-900);
-  padding: 0 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 60px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  border-bottom: 2px solid var(--green);
-}
-.header-logo {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 22px;
-  color: var(--white);
-  letter-spacing: 0.06em;
-  text-decoration: none;
-}
-.header-logo span { color: var(--green); }
-.header-badge {
-  font-size: 11px;
-  background: var(--green);
-  color: var(--white);
-  padding: 3px 10px;
-  border-radius: 20px;
-  letter-spacing: 0.04em;
-  font-weight: 500;
-}
-.hero {
-  background: var(--gray-900);
-  color: var(--white);
-  padding: 3rem 2rem 2.5rem;
-  text-align: center;
-  border-bottom: 1px solid #2a2a2a;
-}
-.hero-eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  color: var(--green-mid);
-  font-weight: 500;
-  margin-bottom: 10px;
-  text-transform: uppercase;
-}
-.hero h1 {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: clamp(2.2rem, 6vw, 3.8rem);
-  letter-spacing: 0.04em;
-  line-height: 1.1;
-  margin-bottom: 12px;
-}
-.hero h1 span { color: var(--green); }
-.hero p {
-  font-size: 14px;
-  color: #aaaaaa;
-  max-width: 500px;
-  margin: 0 auto;
-  line-height: 1.7;
-}
-.main { max-width: 700px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
-.progress-wrap { margin-bottom: 2rem; }
-.progress-track { height: 3px; background: var(--gray-300); border-radius: 2px; overflow: hidden; }
-.progress-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.5s ease; width: 0%; }
-.progress-label { font-size: 12px; color: var(--gray-500); margin-top: 6px; }
-.sec-card {
-  background: var(--white);
-  border: 1px solid #e8e8e4;
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  margin-bottom: 1.25rem;
-}
-.sec-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 1.25rem;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f0f0ec;
-}
-.sec-num {
-  width: 26px; height: 26px;
-  background: var(--green);
-  color: var(--white);
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.sec-title { font-size: 14px; font-weight: 700; color: var(--gray-700); letter-spacing: 0.03em; }
-.field { margin-bottom: 14px; }
-.field:last-child { margin-bottom: 0; }
-.field label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--gray-500);
-  margin-bottom: 5px;
-  letter-spacing: 0.03em;
-}
-.field input, .field select, .field textarea {
-  width: 100%;
-  border: 1px solid #e0e0dc;
-  border-radius: var(--radius);
-  padding: 9px 12px;
-  font-size: 14px;
-  font-family: 'Noto Sans TC', sans-serif;
-  color: var(--gray-900);
-  background: var(--white);
-  transition: border-color 0.15s, box-shadow 0.15s;
-  outline: none;
-  -webkit-appearance: none;
-}
-.field input:focus, .field select:focus, .field textarea:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
-}
-.field textarea { resize: vertical; min-height: 80px; }
-.field select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b6b6b' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
-  cursor: pointer;
-}
-.hint { font-size: 11px; color: var(--gray-300); margin-top: 3px; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-@media(max-width: 480px) { .row2, .row3 { grid-template-columns: 1fr; } }
-.tog-group { display: flex; flex-wrap: wrap; gap: 7px; }
-.tog {
-  padding: 6px 14px;
-  border: 1px solid #e0e0dc;
-  border-radius: 20px;
-  font-size: 13px;
-  font-family: 'Noto Sans TC', sans-serif;
-  cursor: pointer;
-  background: var(--white);
-  color: var(--gray-700);
-  transition: all 0.15s;
-}
-.tog:hover { border-color: var(--green); color: var(--green-dark); background: var(--green-light); }
-.tog.on { border-color: var(--green); background: var(--green-light); color: var(--green-dark); font-weight: 500; }
-.upload-zone {
-  border: 1.5px dashed #d0d0cc;
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.15s;
-  background: var(--gray-50);
-}
-.upload-zone:hover { border-color: var(--green); background: var(--green-light); }
-.upload-plus { font-size: 28px; color: var(--green); margin-bottom: 6px; line-height: 1; }
-.upload-zone p { font-size: 13px; color: var(--gray-500); }
-.upload-zone .sub { font-size: 11px; color: var(--gray-300); margin-top: 3px; }
-.previews { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.prev-item { position: relative; width: 72px; height: 72px; border-radius: var(--radius); overflow: hidden; border: 1px solid #e0e0dc; }
-.prev-item img { width: 100%; height: 100%; object-fit: cover; }
-.prev-item .del { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; border: none; }
-.submit-wrap { margin-top: 1.5rem; }
-.submit-btn {
-  width: 100%;
-  padding: 14px;
-  background: var(--green);
-  color: var(--white);
-  border: none;
-  border-radius: var(--radius);
-  font-size: 15px;
-  font-weight: 700;
-  font-family: 'Noto Sans TC', sans-serif;
-  cursor: pointer;
-  letter-spacing: 0.04em;
-  transition: background 0.15s, transform 0.1s;
-}
-.submit-btn:hover { background: var(--green-dark); }
-.submit-btn:active { transform: scale(0.99); }
-.submit-note { font-size: 12px; color: var(--gray-300); text-align: center; margin-top: 10px; }
-.result-wrap { display: none; }
-.result-wrap.show { display: block; }
-.loading-card {
-  background: var(--white);
-  border: 1px solid #e8e8e4;
-  border-radius: var(--radius-lg);
-  padding: 2.5rem;
-  text-align: center;
-}
-.loading-spinner {
-  width: 36px; height: 36px;
-  border: 3px solid var(--green-light);
-  border-top-color: var(--green);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 1rem;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-text { font-size: 14px; color: var(--gray-500); }
-.diag-card {
-  background: var(--white);
-  border: 1px solid #e8e8e4;
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  margin-bottom: 14px;
-  animation: fadeUp 0.4s ease both;
-}
-@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-.sev-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  margin-bottom: 10px;
-}
-.sev-ok { background: var(--green-light); color: var(--green-dark); }
-.sev-warn { background: var(--amber-light); color: var(--amber); }
-.sev-danger { background: var(--red-light); color: var(--red); }
-.result-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; line-height: 1.4; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.chip { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--gray-100); color: var(--gray-500); }
-.diag-body { font-size: 13px; color: var(--gray-700); line-height: 1.8; }
-.diag-body p { margin-bottom: 8px; }
-.diag-body p:last-child { margin-bottom: 0; }
-.prod-card {
-  background: var(--white);
-  border: 1.5px solid var(--green);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  margin-bottom: 14px;
-  animation: fadeUp 0.4s ease 0.15s both;
-}
-.prod-eyebrow { font-size: 11px; color: var(--green); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
-.prod-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-.prod-desc { font-size: 13px; color: var(--gray-500); line-height: 1.7; margin-bottom: 14px; }
-.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn-primary {
-  display: inline-block;
-  padding: 9px 20px;
-  background: var(--green);
-  color: var(--white);
-  border-radius: var(--radius);
-  font-size: 13px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: background 0.15s;
-  border: none;
-  cursor: pointer;
-  font-family: 'Noto Sans TC', sans-serif;
-}
-.btn-primary:hover { background: var(--green-dark); }
-.btn-outline {
-  display: inline-block;
-  padding: 9px 20px;
-  background: transparent;
-  color: var(--green-dark);
-  border: 1px solid var(--green);
-  border-radius: var(--radius);
-  font-size: 13px;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.15s;
-  cursor: pointer;
-  font-family: 'Noto Sans TC', sans-serif;
-}
-.btn-outline:hover { background: var(--green-light); }
-
-/* LINE CTA 卡片 - 強調版 */
-.line-cta-card {
-  background: var(--gray-900);
-  border-radius: var(--radius-lg);
-  padding: 1.75rem 1.5rem;
-  margin-bottom: 14px;
-  animation: fadeUp 0.4s ease 0.25s both;
-  text-align: center;
-}
-.line-cta-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--white);
-  margin-bottom: 6px;
-}
-.line-cta-sub {
-  font-size: 13px;
-  color: #aaa;
-  margin-bottom: 18px;
-  line-height: 1.6;
-}
-.line-cta-note {
-  font-size: 11px;
-  color: #666;
-  margin-top: 10px;
-}
-.btn-line-big {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 13px 28px;
-  background: #06C755;
-  color: var(--white);
-  border-radius: var(--radius);
-  font-size: 15px;
-  font-weight: 700;
-  text-decoration: none;
-  font-family: 'Noto Sans TC', sans-serif;
-  transition: background 0.15s, transform 0.1s;
-  cursor: pointer;
-  border: none;
-}
-.btn-line-big:hover { background: #05a849; }
-.btn-line-big:active { transform: scale(0.98); }
-.btn-line-big svg { width: 22px; height: 22px; fill: #fff; flex-shrink: 0; }
-
-.msg-preview {
-  background: #1e1e1e;
-  border: 1px solid #333;
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  margin: 0 0 16px;
-  text-align: left;
-}
-.msg-preview-label {
-  font-size: 10px;
-  color: #06C755;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  margin-bottom: 8px;
-}
-.msg-preview-body {
-  font-size: 12px;
-  color: #ccc;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  font-family: monospace;
-}
-
-.footer-links {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 1rem 0;
-  border-top: 1px solid #f0f0ec;
-  margin-top: 8px;
-  animation: fadeUp 0.4s ease 0.35s both;
-}
-.footer-links a { font-size: 13px; color: var(--green); text-decoration: none; }
-.footer-links a:hover { color: var(--green-dark); text-decoration: underline; }
-.footer-links span { color: var(--gray-300); }
-.reset-btn {
-  background: transparent;
-  border: 1px solid #e0e0dc;
-  border-radius: var(--radius);
-  padding: 8px 18px;
-  font-size: 13px;
-  font-family: 'Noto Sans TC', sans-serif;
-  color: var(--gray-500);
-  cursor: pointer;
-  margin-top: 1rem;
-  display: block;
-  transition: all 0.15s;
-}
-.reset-btn:hover { border-color: var(--gray-500); color: var(--gray-700); }
-.page-footer {
-  background: var(--gray-900);
-  color: #888;
-  font-size: 12px;
-  text-align: center;
-  padding: 1.5rem;
-  margin-top: 2rem;
-  line-height: 1.8;
-}
-.page-footer a { color: var(--green-mid); text-decoration: none; }
+:root{--green:#1D9E75;--green-dark:#0F6E56;--green-light:#E1F5EE;--green-mid:#9FE1CB;--amber:#BA7517;--amber-light:#FAEEDA;--red:#A32D2D;--red-light:#FCEBEB;--gray-900:#1a1a1a;--gray-700:#3d3d3d;--gray-500:#6b6b6b;--gray-300:#c4c4c4;--gray-100:#f5f5f3;--gray-50:#fafaf8;--white:#ffffff;--radius:8px;--radius-lg:14px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--gray-50);color:var(--gray-900);min-height:100vh;font-size:15px;line-height:1.6;}
+.header{background:var(--gray-900);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;border-bottom:2px solid var(--green);}
+.header-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--white);letter-spacing:.06em;text-decoration:none;}
+.header-logo span{color:var(--green);}
+.header-badge{font-size:11px;background:var(--green);color:var(--white);padding:3px 10px;border-radius:20px;letter-spacing:.04em;font-weight:500;}
+.hero{background:var(--gray-900);color:var(--white);padding:3rem 2rem 2.5rem;text-align:center;border-bottom:1px solid #2a2a2a;}
+.hero-eyebrow{font-size:11px;letter-spacing:.15em;color:var(--green-mid);font-weight:500;margin-bottom:10px;text-transform:uppercase;}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,6vw,3.8rem);letter-spacing:.04em;line-height:1.1;margin-bottom:12px;}
+.hero h1 span{color:var(--green);}
+.hero p{font-size:14px;color:#aaa;max-width:500px;margin:0 auto;line-height:1.7;}
+.main{max-width:700px;margin:0 auto;padding:2rem 1.5rem 4rem;}
+.progress-wrap{margin-bottom:2rem;}
+.progress-track{height:3px;background:var(--gray-300);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--green);border-radius:2px;transition:width .5s ease;width:0%;}
+.progress-label{font-size:12px;color:var(--gray-500);margin-top:6px;}
+.sec-card{background:var(--white);border:1px solid #e8e8e4;border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1.25rem;}
+.sec-head{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;padding-bottom:10px;border-bottom:1px solid #f0f0ec;}
+.sec-num{width:26px;height:26px;background:var(--green);color:var(--white);border-radius:50%;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sec-title{font-size:14px;font-weight:700;color:var(--gray-700);letter-spacing:.03em;}
+.field{margin-bottom:14px;}
+.field:last-child{margin-bottom:0;}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--gray-500);margin-bottom:5px;letter-spacing:.03em;}
+.field input,.field select,.field textarea{width:100%;border:1px solid #e0e0dc;border-radius:var(--radius);padding:9px 12px;font-size:14px;font-family:'Noto Sans TC',sans-serif;color:var(--gray-900);background:var(--white);transition:border-color .15s,box-shadow .15s;outline:none;-webkit-appearance:none;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.12);}
+.field textarea{resize:vertical;min-height:80px;}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b6b6b' d='M6 8L0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer;}
+.hint{font-size:11px;color:var(--gray-300);margin-top:3px;}
+.required{color:var(--red);margin-left:2px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+@media(max-width:480px){.row2,.row3{grid-template-columns:1fr;}}
+.tog-group{display:flex;flex-wrap:wrap;gap:7px;}
+.tog{padding:6px 14px;border:1px solid #e0e0dc;border-radius:20px;font-size:13px;font-family:'Noto Sans TC',sans-serif;cursor:pointer;background:var(--white);color:var(--gray-700);transition:all .15s;}
+.tog:hover,.tog.on{border-color:var(--green);background:var(--green-light);color:var(--green-dark);font-weight:500;}
+.upload-zone{border:1.5px dashed #d0d0cc;border-radius:var(--radius-lg);padding:1.5rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--gray-50);}
+.upload-zone:hover{border-color:var(--green);background:var(--green-light);}
+.upload-plus{font-size:28px;color:var(--green);margin-bottom:6px;line-height:1;}
+.upload-zone p{font-size:13px;color:var(--gray-500);}
+.upload-zone .sub{font-size:11px;color:var(--gray-300);margin-top:3px;}
+.previews{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.prev-item{position:relative;width:72px;height:72px;border-radius:var(--radius);overflow:hidden;border:1px solid #e0e0dc;}
+.prev-item img{width:100%;height:100%;object-fit:cover;}
+.prev-item .del{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;border:none;}
+.submit-wrap{margin-top:1.5rem;}
+.submit-btn{width:100%;padding:14px;background:var(--green);color:var(--white);border:none;border-radius:var(--radius);font-size:15px;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;letter-spacing:.04em;transition:background .15s,transform .1s;}
+.submit-btn:hover{background:var(--green-dark);}
+.submit-btn:active{transform:scale(.99);}
+.submit-note{font-size:12px;color:var(--gray-300);text-align:center;margin-top:10px;}
+.result-wrap{display:none;}
+.result-wrap.show{display:block;}
+.loading-card{background:var(--white);border:1px solid #e8e8e4;border-radius:var(--radius-lg);padding:2.5rem;text-align:center;}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--green-light);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:14px;color:var(--gray-500);}
+.diag-card{background:var(--white);border:1px solid #e8e8e4;border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:14px;animation:fadeUp .4s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+.sev-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.03em;margin-bottom:10px;}
+.sev-ok{background:var(--green-light);color:var(--green-dark);}
+.sev-warn{background:var(--amber-light);color:var(--amber);}
+.sev-danger{background:var(--red-light);color:var(--red);}
+.result-title{font-size:17px;font-weight:700;margin-bottom:10px;line-height:1.4;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.chip{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--gray-100);color:var(--gray-500);}
+.diag-body{font-size:13px;color:var(--gray-700);line-height:1.8;}
+.diag-body p{margin-bottom:8px;}
+.diag-body p:last-child{margin-bottom:0;}
+.teeth-calc{background:#f0fbf6;border:1px solid var(--green-mid);border-radius:var(--radius);padding:12px 14px;margin-top:12px;}
+.teeth-calc-title{font-size:11px;color:var(--green-dark);font-weight:700;margin-bottom:4px;letter-spacing:.04em;}
+.teeth-calc-body{font-size:13px;color:var(--gray-700);}
+.prod-card{background:var(--white);border:1.5px solid var(--green);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:14px;animation:fadeUp .4s ease .15s both;}
+.prod-eyebrow{font-size:11px;color:var(--green);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
+.prod-name{font-size:16px;font-weight:700;margin-bottom:6px;}
+.prod-desc{font-size:13px;color:var(--gray-500);line-height:1.7;margin-bottom:14px;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;}
+.btn-primary{display:inline-block;padding:9px 20px;background:var(--green);color:var(--white);border-radius:var(--radius);font-size:13px;font-weight:700;text-decoration:none;transition:background .15s;border:none;cursor:pointer;font-family:'Noto Sans TC',sans-serif;}
+.btn-primary:hover{background:var(--green-dark);}
+.btn-outline{display:inline-block;padding:9px 20px;background:transparent;color:var(--green-dark);border:1px solid var(--green);border-radius:var(--radius);font-size:13px;font-weight:500;text-decoration:none;transition:all .15s;cursor:pointer;font-family:'Noto Sans TC',sans-serif;}
+.btn-outline:hover{background:var(--green-light);}
+.line-cta-card{background:var(--gray-900);border-radius:var(--radius-lg);padding:1.75rem 1.5rem;margin-bottom:14px;animation:fadeUp .4s ease .25s both;text-align:center;}
+.line-cta-title{font-size:16px;font-weight:700;color:var(--white);margin-bottom:6px;}
+.line-cta-sub{font-size:13px;color:#aaa;margin-bottom:18px;line-height:1.6;}
+.line-cta-note{font-size:11px;color:#666;margin-top:10px;}
+.btn-line-big{display:inline-flex;align-items:center;gap:10px;padding:13px 28px;background:#06C755;color:var(--white);border-radius:var(--radius);font-size:15px;font-weight:700;text-decoration:none;font-family:'Noto Sans TC',sans-serif;transition:background .15s,transform .1s;cursor:pointer;border:none;}
+.btn-line-big:hover{background:#05a849;}
+.btn-line-big:active{transform:scale(.98);}
+.btn-line-big svg{width:22px;height:22px;fill:#fff;flex-shrink:0;}
+.msg-preview{background:#1e1e1e;border:1px solid #333;border-radius:var(--radius);padding:12px 14px;margin:0 0 16px;text-align:left;}
+.msg-preview-label{font-size:10px;color:#06C755;font-weight:700;letter-spacing:.08em;margin-bottom:8px;}
+.msg-preview-body{font-size:12px;color:#ccc;line-height:1.7;white-space:pre-wrap;font-family:monospace;}
+.saved-badge{display:inline-flex;align-items:center;gap:6px;background:var(--green-light);color:var(--green-dark);font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;margin-bottom:12px;}
+.saved-badge::before{content:'✓';font-weight:700;}
+.footer-links{display:flex;gap:16px;flex-wrap:wrap;padding:1rem 0;border-top:1px solid #f0f0ec;margin-top:8px;animation:fadeUp .4s ease .35s both;}
+.footer-links a{font-size:13px;color:var(--green);text-decoration:none;}
+.footer-links a:hover{color:var(--green-dark);text-decoration:underline;}
+.footer-links span{color:var(--gray-300);}
+.reset-btn{background:transparent;border:1px solid #e0e0dc;border-radius:var(--radius);padding:8px 18px;font-size:13px;font-family:'Noto Sans TC',sans-serif;color:var(--gray-500);cursor:pointer;margin-top:1rem;display:block;transition:all .15s;}
+.reset-btn:hover{border-color:var(--gray-500);color:var(--gray-700);}
+.page-footer{background:var(--gray-900);color:#888;font-size:12px;text-align:center;padding:1.5rem;margin-top:2rem;line-height:1.8;}
+.page-footer a{color:var(--green-mid);text-decoration:none;}
+.field-error{border-color:var(--red)!important;}
+.error-msg{font-size:11px;color:var(--red);margin-top:3px;}
 </style>
 </head>
 <body>
@@ -432,9 +135,32 @@ body {
 
   <div id="form-wrap">
 
+    <!-- 0. 聯絡資訊 -->
     <div class="sec-card">
       <div class="sec-head">
         <div class="sec-num">1</div>
+        <div class="sec-title">您的聯絡資訊</div>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>姓名 <span class="required">*</span></label>
+          <input type="text" id="name" placeholder="例：王大明">
+        </div>
+        <div class="field">
+          <label>公司名稱</label>
+          <input type="text" id="company" placeholder="例：XX木業有限公司">
+        </div>
+        <div class="field">
+          <label>聯絡電話</label>
+          <input type="tel" id="phone" placeholder="例：0912-345-678">
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. 機台與鋸片 -->
+    <div class="sec-card">
+      <div class="sec-head">
+        <div class="sec-num">2</div>
         <div class="sec-title">機台 &amp; 鋸片規格</div>
       </div>
       <div class="row2">
@@ -447,7 +173,7 @@ body {
           <input type="text" id="brand" placeholder="例：TCT / 台製 / 不知道">
         </div>
       </div>
-      <div style="margin-top:4px;margin-bottom:10px;font-size:12px;font-weight:500;color:var(--gray-500);">鋸片規格（外徑 × 切幅 × 齒數）</div>
+      <div style="margin:4px 0 10px;font-size:12px;font-weight:500;color:var(--gray-500);">鋸片規格（外徑 × 切幅 × 齒數）</div>
       <div class="row3">
         <div class="field">
           <label>外徑 (mm)</label>
@@ -466,14 +192,15 @@ body {
       </div>
     </div>
 
+    <!-- 2. 切削物 -->
     <div class="sec-card">
       <div class="sec-head">
-        <div class="sec-num">2</div>
+        <div class="sec-num">3</div>
         <div class="sec-title">切削物資訊</div>
       </div>
       <div class="row2">
         <div class="field">
-          <label>切削材料種類</label>
+          <label>切削材料種類 <span class="required">*</span></label>
           <select id="material">
             <option value="">請選擇...</option>
             <option value="hardwood">實木（硬木：柚木、橡木）</option>
@@ -513,9 +240,40 @@ body {
       </div>
     </div>
 
+    <!-- 3. 使用頻率 -->
     <div class="sec-card">
       <div class="sec-head">
-        <div class="sec-num">3</div>
+        <div class="sec-num">4</div>
+        <div class="sec-title">使用頻率</div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>每天使用幾小時？</label>
+          <select id="freq-hours">
+            <option value="">請選擇...</option>
+            <option value="1小時以下">1 小時以下</option>
+            <option value="1~4小時">1 ~ 4 小時</option>
+            <option value="4~8小時">4 ~ 8 小時（半天以上）</option>
+            <option value="8小時以上">8 小時以上（整天）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>每月切削量（大約）</label>
+          <select id="freq-vol">
+            <option value="">請選擇...</option>
+            <option value="偶爾使用">偶爾使用（非每天）</option>
+            <option value="少量(<100件)">少量（< 100 件 / 月）</option>
+            <option value="中量(100~500件)">中量（100 ~ 500 件 / 月）</option>
+            <option value="大量(500件以上)">大量（500 件以上 / 月）</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 困擾 -->
+    <div class="sec-card">
+      <div class="sec-head">
+        <div class="sec-num">5</div>
         <div class="sec-title">使用困擾</div>
       </div>
       <div class="field">
@@ -539,9 +297,10 @@ body {
       </div>
     </div>
 
+    <!-- 5. 照片 -->
     <div class="sec-card">
       <div class="sec-head">
-        <div class="sec-num">4</div>
+        <div class="sec-num">6</div>
         <div class="sec-title">照片上傳（選填，更快更準）</div>
       </div>
       <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px;">可上傳設備機台、切削物、鋸片照片，讓診斷更精準</p>
@@ -555,7 +314,7 @@ body {
     </div>
 
     <div class="submit-wrap">
-      <button class="submit-btn" onclick="doSubmit()">送出問診單 → 取得 AI 診斷與產品推薦</button>
+      <button class="submit-btn" onclick="doSubmit()">送出問診單 → 取得診斷與產品推薦</button>
       <p class="submit-note">填寫越完整，診斷越精準。或直接上傳照片說明更快喔！</p>
     </div>
 
@@ -576,8 +335,10 @@ body {
 </footer>
 
 <script>
-const LINE_ID = '@drhawer';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbybkaqAC8lJ7-UZ5ECx_l4suzysJViU347y9yenxvfUx7HoCIJ1ln86gQ-V_N90qpM/exec';
+const LINE_ID='@drhawer';
 
+// Toggle groups
 ['shape-grp','issue-grp'].forEach(id=>{
   document.getElementById(id).querySelectorAll('.tog').forEach(b=>{
     b.addEventListener('click',()=>b.classList.toggle('on'));
@@ -590,22 +351,27 @@ document.getElementById('cut-grp').querySelectorAll('.tog').forEach(b=>{
   });
 });
 
+// Progress
 function updateProgress(){
   let filled=0;
-  if(document.getElementById('rpm').value) filled++;
-  if(document.getElementById('dia').value) filled++;
+  if(document.getElementById('name').value.trim()) filled++;
+  if(document.getElementById('rpm').value||document.getElementById('dia').value) filled++;
   if(document.getElementById('material').value) filled++;
   if(document.querySelectorAll('#issue-grp .tog.on').length>0) filled++;
   const pct=Math.round((filled/4)*100);
   document.getElementById('prog').style.width=pct+'%';
   document.getElementById('prog-label').textContent=
     pct===0?'請填寫以下資訊':
-    pct===100?'資訊齊全，可以送出診斷！':
+    pct===100?'✓ 資訊齊全，可以送出診斷！':
     `已完成 ${pct}%，繼續填寫更精準`;
 }
-['rpm','dia','material'].forEach(id=>document.getElementById(id).addEventListener('input',updateProgress));
+['name','rpm','dia','material'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('input',updateProgress);
+});
 document.getElementById('issue-grp').addEventListener('click',updateProgress);
 
+// Image upload
 let imgFiles=[];
 const fileInp=document.getElementById('file-inp');
 const prevEl=document.getElementById('previews');
@@ -621,8 +387,8 @@ function addFiles(files){
     const r=new FileReader();
     r.onload=e=>{
       const i=imgFiles.length-1;
-      const d=document.createElement('div'); d.className='prev-item';
-      d.innerHTML=`<img src="${e.target.result}" alt="上傳照片"><button class="del" onclick="removeImg(${i})">×</button>`;
+      const d=document.createElement('div');d.className='prev-item';
+      d.innerHTML=`<img src="${e.target.result}" alt="照片"><button class="del" onclick="removeImg(${i})">×</button>`;
       prevEl.appendChild(d);
     };
     r.readAsDataURL(f);
@@ -634,8 +400,8 @@ function reRenderPrev(){
   imgFiles.forEach((f,i)=>{
     const r=new FileReader();
     r.onload=e=>{
-      const d=document.createElement('div'); d.className='prev-item';
-      d.innerHTML=`<img src="${e.target.result}" alt="上傳照片"><button class="del" onclick="removeImg(${i})">×</button>`;
+      const d=document.createElement('div');d.className='prev-item';
+      d.innerHTML=`<img src="${e.target.result}" alt="照片"><button class="del" onclick="removeImg(${i})">×</button>`;
       prevEl.appendChild(d);
     };
     r.readAsDataURL(f);
@@ -647,21 +413,32 @@ function getSel(id){return Array.from(document.getElementById(id).querySelectorA
 const PRODUCTS={
   hardwood:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'精密齒型排列，ATB / Hi-ATB 交錯斜齒，針對硬木橫切毛邊優化。淨亮鍍層不黏屑，鎢鋼齒硬度 HRA 90+ 壽命顯著優於一般市售品。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
   softwood:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'適用軟木縱橫切，精密齒型設計切面光滑，可搭配 HAWER 鋸片診療系統進一步客製規格。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
-  board:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'適用夾板、MDF、木工板，高齒數設計減少層板崩裂，淨亮鍍層防止 MDF 粉塵黏附齒溝。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
-  plastic:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'適用壓克力、PVC、塑料板材，特殊齒角設計防止崩邊與熔邊，切面平整光滑。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
-  aluminum:{name:'HAWER φ255~710 鋁合金用鋸片',desc:'高端熱處理、鋼性升級，避震膠填充實現低分貝切割。適用鋁擠型、鋁管、鋁板、鋁棒，多規格可選。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=19#C',tag:'推薦 — 鋁合金系列'},
+  board:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'適用夾板、MDF、木工板，高齒數設計減少層板崩裂，淨亮鍍層防止粉塵黏附齒溝。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
+  plastic:{name:'HAWER φ305~455 木工 / 塑料處方鋸片',desc:'適用壓克力、PVC、塑料板材，特殊齒角防止崩邊與熔邊，切面平整光滑。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1#C',tag:'推薦 — 木工 / 塑料處方系列'},
+  aluminum:{name:'HAWER φ255~710 鋁合金用鋸片',desc:'高端熱處理、鋼性升級，避震膠填充實現低分貝切割。適用鋁擠型、鋁管、鋁板，多規格可選。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=19#C',tag:'推薦 — 鋁合金系列'},
   aluminum_billet:{name:'HAWER φ650~1870 鋁胚 / 鋁鑄棒大外徑圓鋸片',desc:'量身訂製搭配機台調性，適用鋁胚、鋁鑄棒、鋁錠等大料切割。買鋸片送顧問服務。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=223#C',tag:'推薦 — 大外徑鋁用系列'},
   steel:{name:'HAWER φ2100~2200 型鋼冷切 / 熱切鋸片',desc:'大外徑冶金鋼鐵用，冷切與熱切雙系列，新品供應、售後研磨服務完備。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=192#C',tag:'推薦 — 型鋼 / 鋼鐵系列'},
   stainless:{name:'日本 14" 鐵 / 不鏽鋼兼用鋸片（低速機）',desc:'日本製造，鐵材與不鏽鋼兼用，適合低速機台，切斷面平整，壽命穩定。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=168#C',tag:'推薦 — 鐵工 / 不鏽鋼系列'},
   gypsum:{name:'φ500-20吋 石膏磚隔間工程專用鋸片',desc:'全台唯一石膏磚隔間工程專用圓鋸片，切割平整不崩邊，適合室內輕隔間工程。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=232#C',tag:'推薦 — 石膏磚專用系列'}
 };
 
-const MAT_LABEL={
-  hardwood:'實木（硬木：柚木、橡木）',softwood:'實木（軟木：松木、杉木）',
-  board:'木工板 / 夾板 / MDF',plastic:'塑膠 / 壓克力',
-  aluminum:'鋁合金 / 鋁擠型',aluminum_billet:'鋁胚 / 鋁鑄棒 / 鋁錠',
-  steel:'鋼材 / 型鋼',stainless:'不鏽鋼',gypsum:'石膏磚 / 隔間板'
-};
+const MAT_LABEL={hardwood:'實木（硬木：柚木、橡木）',softwood:'實木（軟木：松木、杉木）',board:'木工板 / 夾板 / MDF',plastic:'塑膠 / 壓克力',aluminum:'鋁合金 / 鋁擠型',aluminum_billet:'鋁胚 / 鋁鑄棒 / 鋁錠',steel:'鋼材 / 型鋼',stainless:'不鏽鋼',gypsum:'石膏磚 / 隔間板'};
+
+// 建議齒數計算
+function calcTeeth(rpm,dia,mat,cuts){
+  if(!rpm||!dia) return null;
+  const spd=Math.round(Math.PI*parseInt(dia)*parseInt(rpm)/60000);
+  let minT,maxT,reason;
+  if(mat==='hardwood'||mat==='board'){
+    if(cuts.includes('橫切')){minT=60;maxT=100;reason='硬木 / 夾板橫切，高齒數減少毛邊';}
+    else{minT=24;maxT=40;reason='縱切建議低齒數，加速排屑避免燒焦';}
+  }else if(mat==='softwood'){minT=24;maxT=60;reason='軟木建議中齒數，兼顧切速與切面品質';}
+  else if(mat==='aluminum'||mat==='aluminum_billet'){minT=60;maxT=120;reason='鋁材需高齒數小切削量，防止黏屑';}
+  else if(mat==='steel'||mat==='stainless'){minT=40;maxT=80;reason='金屬切削需高齒數，每齒切削量要小';}
+  else if(mat==='plastic'){minT=60;maxT=80;reason='塑料建議高齒數，防止崩邊與熔融';}
+  else return null;
+  return {minT,maxT,reason,spd};
+}
 
 function getSeverity(mat,issues){
   if(issues.includes('發燙冒煙')) return 'danger';
@@ -687,7 +464,7 @@ function buildDiag(data){
     else lines.push('切面不良請確認齒型是否符合材料特性，並檢查鋸片安裝偏擺狀況。');
   }
   if(issues.includes('黏屑塞齒')) lines.push('黏屑塞齒應選用<strong>淨亮抗黏鍍層鋸片</strong>並搭配切削油；木材黏屑可用松香水清洗齒溝。');
-  if(issues.includes('噪音震動')) lines.push('異常震動請停機目視確認鋸片側面是否彎曲，並檢查法蘭盤螺栓鎖固狀態。');
+  if(issues.includes('噪音震動')) lines.push('異常震動請停機確認鋸片側面是否彎曲，並檢查法蘭盤螺栓鎖固狀態。');
   if(issues.includes('切割偏斜')) lines.push('切割跑偏請先校準導尺，若鋸片本體已彎曲需更換。');
   if(issues.includes('進刀速度慢')) lines.push('進刀阻力大代表鋸齒已鈍化，建議立即安排研磨或更換，避免馬達過載。');
   if(lines.length===0) lines.push('根據您的資訊，目前使用狀況基本正常。建議定期觀察鋸齒磨耗，出現阻力增加或切面品質下降時即安排重磨。');
@@ -695,14 +472,18 @@ function buildDiag(data){
   return lines;
 }
 
-// 組成傳給 LINE 的訊息內容
-function buildLineMessage(data, diagTitle){
-  const {rpm,dia,kerf,teeth,brand,mat,thick,shapes,cuts,issues,note}=data;
+// LINE 訊息
+function buildLineMsg(data,diagTitle){
+  const{name,company,phone,rpm,dia,kerf,teeth,brand,mat,thick,shapes,cuts,freqH,freqV,issues,note}=data;
   let msg='【鋸片醫生問診單】\n';
+  msg+='━━━━━━━━━━━━━━\n';
+  if(name) msg+=`👤 姓名：${name}\n`;
+  if(company) msg+=`🏢 公司：${company}\n`;
+  if(phone) msg+=`📞 電話：${phone}\n`;
   msg+='━━━━━━━━━━━━━━\n';
   if(rpm) msg+=`🔧 機台轉速：${rpm} RPM\n`;
   if(dia||kerf||teeth){
-    let spec=[dia&&`φ${dia}mm`,kerf&&`切幅${kerf}mm`,teeth&&`${teeth}齒`].filter(Boolean).join(' × ');
+    const spec=[dia&&`φ${dia}mm`,kerf&&`切幅${kerf}mm`,teeth&&`${teeth}齒`].filter(Boolean).join(' × ');
     msg+=`⚙️ 鋸片規格：${spec}\n`;
   }
   if(brand) msg+=`🏷️ 使用品牌：${brand}\n`;
@@ -710,6 +491,7 @@ function buildLineMessage(data, diagTitle){
   if(thick) msg+=`📏 切削厚度：${thick}mm\n`;
   if(shapes.length) msg+=`🔲 切削性質：${shapes.join('、')}\n`;
   if(cuts.length) msg+=`✂️ 切割方向：${cuts.join('、')}\n`;
+  if(freqH||freqV) msg+=`⏱️ 使用頻率：${[freqH,freqV].filter(Boolean).join('，')}\n`;
   if(issues.length) msg+=`⚠️ 使用困擾：${issues.join('、')}\n`;
   if(note) msg+=`📝 補充說明：${note}\n`;
   msg+='━━━━━━━━━━━━━━\n';
@@ -718,14 +500,49 @@ function buildLineMessage(data, diagTitle){
   return msg;
 }
 
+// 儲存到 Google 試算表
+function saveToSheet(data,diagTitle,severity){
+  const payload={
+    name:data.name,company:data.company,phone:data.phone,
+    rpm:data.rpm,dia:data.dia,kerf:data.kerf,teeth:data.teeth,brand:data.brand,
+    material:MAT_LABEL[data.mat]||data.mat,
+    thickness:data.thick,
+    shapes:data.shapes.join('、'),
+    cuts:data.cuts.join('、'),
+    frequency:[data.freqH,data.freqV].filter(Boolean).join('，'),
+    issues:data.issues.join('、'),
+    note:data.note,
+    diagTitle,severity
+  };
+  fetch(SHEET_URL,{
+    method:'POST',
+    mode:'no-cors',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  }).catch(()=>{});
+}
+
 function doSubmit(){
+  const name=document.getElementById('name').value.trim();
   const mat=document.getElementById('material').value;
-  const rpm=document.getElementById('rpm').value;
-  const dia=document.getElementById('dia').value;
-  if(!mat&&!rpm&&!dia){alert('請至少填寫切削材料、轉速或鋸片外徑其中一項');return;}
+  if(!name){
+    document.getElementById('name').classList.add('field-error');
+    document.getElementById('name').focus();
+    alert('請填寫您的姓名');
+    return;
+  }
+  if(!mat){
+    document.getElementById('material').classList.add('field-error');
+    alert('請選擇切削材料種類');
+    return;
+  }
 
   const data={
-    rpm, dia,
+    name,
+    company:document.getElementById('company').value,
+    phone:document.getElementById('phone').value,
+    rpm:document.getElementById('rpm').value,
+    dia:document.getElementById('dia').value,
     kerf:document.getElementById('kerf').value,
     teeth:document.getElementById('teeth').value,
     brand:document.getElementById('brand').value,
@@ -733,13 +550,14 @@ function doSubmit(){
     thick:document.getElementById('thickness').value,
     shapes:getSel('shape-grp'),
     cuts:getSel('cut-grp'),
+    freqH:document.getElementById('freq-hours').value,
+    freqV:document.getElementById('freq-vol').value,
     issues:getSel('issue-grp'),
     note:document.getElementById('note').value
   };
 
   document.getElementById('form-wrap').style.display='none';
-  const rw=document.getElementById('result-wrap');
-  rw.classList.add('show');
+  document.getElementById('result-wrap').classList.add('show');
   document.getElementById('result-inner').innerHTML=`
     <div class="loading-card">
       <div class="loading-spinner"></div>
@@ -756,34 +574,48 @@ function doSubmit(){
     const sevCls='sev-'+sev;
     const diagTitle=sev==='ok'?'使用狀況良好，維持定期保養':sev==='warn'?'發現潛在問題，建議近期處理':'發現高風險問題，請立即停機';
 
+    // 儲存到試算表
+    saveToSheet(data,diagTitle,sevLabel);
+
+    // 建議齒數
+    const teethRec=calcTeeth(data.rpm,data.dia,data.mat,data.cuts);
+
     const allVals=[
-      rpm&&`${rpm} RPM`,
-      dia&&`φ${dia}mm`,
+      data.rpm&&`${data.rpm} RPM`,
+      data.dia&&`φ${data.dia}mm`,
       data.kerf&&`切幅${data.kerf}mm`,
       data.teeth&&`${data.teeth}T`,
       data.brand&&data.brand,
-      mat&&MAT_LABEL[mat],
+      MAT_LABEL[data.mat],
       data.thick&&`${data.thick}mm`,
       ...data.shapes,...data.cuts,...issues
     ].filter(Boolean);
     const chips=allVals.map(v=>`<span class="chip">${v}</span>`).join('');
     const diagLines=lines.map(l=>`<p>${l}</p>`).join('');
 
-    // 建立 LINE 訊息
-    const lineMsg=buildLineMessage(data, diagTitle);
+    const lineMsg=buildLineMsg(data,diagTitle);
     const lineUrl=`https://line.me/R/oaMessage/%40drhawer/?${encodeURIComponent(lineMsg)}`;
-
-    // 訊息預覽（顯示給客戶看）
-    const previewText=lineMsg;
 
     let html=`
       <div class="diag-card">
+        <span class="saved-badge">問診資料已記錄</span>
         <span class="sev-badge ${sevCls}">${sevLabel}</span>
         <div class="result-title">${diagTitle}</div>
         <div class="chips">${chips}</div>
-        <div class="diag-body">${diagLines}</div>
-      </div>
-    `;
+        <div class="diag-body">${diagLines}`;
+
+    if(teethRec){
+      html+=`
+        <div class="teeth-calc">
+          <div class="teeth-calc-title">⚙️ 建議齒數計算</div>
+          <div class="teeth-calc-body">
+            線速度 ${teethRec.spd} m/s，建議齒數：<strong>${teethRec.minT}T ~ ${teethRec.maxT}T</strong><br>
+            <span style="font-size:12px;color:var(--gray-500);">${teethRec.reason}</span>
+          </div>
+        </div>`;
+    }
+
+    html+=`</div></div>`;
 
     if(prod){
       html+=`
@@ -795,8 +627,7 @@ function doSubmit(){
             <a href="${prod.url}" class="btn-primary" target="_blank">查看產品詳情 →</a>
             <a href="https://www.hawer-knife.com/Inquiry_Cart.asp" class="btn-outline" target="_blank">線上詢價</a>
           </div>
-        </div>
-      `;
+        </div>`;
     }
 
     html+=`
@@ -805,7 +636,7 @@ function doSubmit(){
         <div class="line-cta-sub">點下方按鈕，您的問診資料將<strong style="color:#06C755;">自動帶入 LINE 對話</strong><br>鋸片醫生收到後直接為您診療，不用再重新說明</div>
         <div class="msg-preview">
           <div class="msg-preview-label">📋 將自動傳送的問診內容</div>
-          <div class="msg-preview-body" id="line-preview"></div>
+          <div class="msg-preview-body">${lineMsg.replace(/</g,'&lt;')}</div>
         </div>
         <a href="${lineUrl}" class="btn-line-big" target="_blank">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
@@ -813,9 +644,6 @@ function doSubmit(){
         </a>
         <div class="line-cta-note">點擊後會開啟 LINE App，訊息已預填，按送出即可</div>
       </div>
-    `;
-
-    html+=`
       <div class="footer-links">
         <a href="https://www.hawer-knife.com/Product.asp" target="_blank">瀏覽全部產品</a>
         <span>|</span>
@@ -824,14 +652,9 @@ function doSubmit(){
         <a href="https://www.hawer-knife.com/Product_sCats.asp?productscatid=541163996242" target="_blank">鋸片醫學誌</a>
         <span>|</span>
         <a href="https://www.hawer-knife.com/ProductDetails.asp?produid=199#C" target="_blank">ISO 診療系統</a>
-      </div>
-    `;
+      </div>`;
 
     document.getElementById('result-inner').innerHTML=html;
-    // 填入預覽訊息
-    const previewEl=document.getElementById('line-preview');
-    if(previewEl) previewEl.textContent=previewText;
-
   },1200);
 }
 
@@ -841,10 +664,12 @@ function resetForm(){
   document.getElementById('result-inner').innerHTML='';
   imgFiles=[];prevEl.innerHTML='';
   document.querySelectorAll('.tog.on').forEach(b=>b.classList.remove('on'));
-  ['rpm','dia','kerf','teeth','brand','thickness','note'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
+  ['name','company','phone','rpm','dia','kerf','teeth','brand','thickness','note'].forEach(id=>{
+    const el=document.getElementById(id);if(el){el.value='';el.classList.remove('field-error');}
   });
-  document.getElementById('material').value='';
+  ['material','freq-hours','freq-vol'].forEach(id=>{
+    const el=document.getElementById(id);if(el){el.value='';el.classList.remove('field-error');}
+  });
   document.getElementById('prog').style.width='0%';
   document.getElementById('prog-label').textContent='請填寫以下資訊';
   window.scrollTo({top:0,behavior:'smooth'});
