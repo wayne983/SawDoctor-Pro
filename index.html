@@ -424,20 +424,45 @@ const PRODUCTS={
 
 const MAT_LABEL={hardwood:'實木（硬木：柚木、橡木）',softwood:'實木（軟木：松木、杉木）',board:'木工板 / 夾板 / MDF',plastic:'塑膠 / 壓克力',aluminum:'鋁合金 / 鋁擠型',aluminum_billet:'鋁胚 / 鋁鑄棒 / 鋁錠',steel:'鋼材 / 型鋼',stainless:'不鏽鋼',gypsum:'石膏磚 / 隔間板'};
 
-// 建議齒數計算
-function calcTeeth(rpm,dia,mat,cuts){
+// 建議齒數計算（含轉速兩難警示）
+function calcTeeth(rpm,dia,mat,cuts,teeth,freqV){
   if(!rpm||!dia) return null;
   const spd=Math.round(Math.PI*parseInt(dia)*parseInt(rpm)/60000);
-  let minT,maxT,reason;
+  const isHighVolume = freqV && (freqV.includes('500') || freqV.includes('100~500'));
+  const currentT = parseInt(teeth)||0;
+
+  let minT,maxT,reason,warning=null,advice=null;
+
   if(mat==='hardwood'||mat==='board'){
-    if(cuts.includes('橫切')){minT=60;maxT=100;reason='硬木 / 夾板橫切，高齒數減少毛邊';}
-    else{minT=24;maxT=40;reason='縱切建議低齒數，加速排屑避免燒焦';}
-  }else if(mat==='softwood'){minT=24;maxT=60;reason='軟木建議中齒數，兼顧切速與切面品質';}
-  else if(mat==='aluminum'||mat==='aluminum_billet'){minT=60;maxT=120;reason='鋁材需高齒數小切削量，防止黏屑';}
-  else if(mat==='steel'||mat==='stainless'){minT=40;maxT=80;reason='金屬切削需高齒數，每齒切削量要小';}
-  else if(mat==='plastic'){minT=60;maxT=80;reason='塑料建議高齒數，防止崩邊與熔融';}
-  else return null;
-  return {minT,maxT,reason,spd};
+    if(cuts.includes('橫切')){
+      minT=60;maxT=80;
+      reason='硬木 / 夾板橫切，建議 60~80T ATB 齒型兼顧切面與排屑';
+      if(spd<35&&currentT>80){
+        warning='⚠️ 注意：您的轉速偏低（'+spd+' m/s），搭配高齒數容易排屑不良，導致積屑燒焦、加速磨鈍。';
+        if(isHighVolume){
+          advice='量產建議：請提供機台型號及廠商給鋸片醫生，評估是否能調整轉速或進刀條件，才能根本解決問題。';
+        } else {
+          advice='非量產建議：切割量不多的情況下，可先試用 80T ATB 齒型鋸片，並放慢進刀速度，減少每齒切削量。';
+        }
+      } else if(spd<35){
+        warning='轉速偏低（'+spd+' m/s），若切面要求高，建議使用 60~80T 而非更高齒數，避免排屑不良。';
+        advice=isHighVolume?'量產建議：請加入鋸片醫生 LINE，提供機台型號，評估是否可調整機械條件。':'非量產建議：使用 80T ATB 鋸片搭配適當進刀速度，可在切面品質與排屑之間取得平衡。';
+      }
+    } else {
+      minT=24;maxT=40;
+      reason='縱切建議低齒數，加速排屑避免燒焦';
+    }
+  } else if(mat==='softwood'){
+    minT=24;maxT=60;reason='軟木建議中齒數，兼顧切速與切面品質';
+  } else if(mat==='aluminum'||mat==='aluminum_billet'){
+    minT=60;maxT=120;reason='鋁材需高齒數小切削量，防止黏屑';
+  } else if(mat==='steel'||mat==='stainless'){
+    minT=40;maxT=80;reason='金屬切削需高齒數，每齒切削量要小';
+  } else if(mat==='plastic'){
+    minT=60;maxT=80;reason='塑料建議高齒數，防止崩邊與熔融';
+  } else return null;
+
+  return {minT,maxT,reason,spd,warning,advice};
 }
 
 function getSeverity(mat,issues){
@@ -578,7 +603,7 @@ function doSubmit(){
     saveToSheet(data,diagTitle,sevLabel);
 
     // 建議齒數
-    const teethRec=calcTeeth(data.rpm,data.dia,data.mat,data.cuts);
+    const teethRec=calcTeeth(data.rpm,data.dia,data.mat,data.cuts,data.teeth,data.freqV);
 
     const allVals=[
       data.rpm&&`${data.rpm} RPM`,
@@ -612,6 +637,8 @@ function doSubmit(){
             線速度 ${teethRec.spd} m/s，建議齒數：<strong>${teethRec.minT}T ~ ${teethRec.maxT}T</strong><br>
             <span style="font-size:12px;color:var(--gray-500);">${teethRec.reason}</span>
           </div>
+          ${teethRec.warning?`<div style="margin-top:10px;padding:8px 10px;background:#fff8f0;border-left:3px solid #BA7517;border-radius:4px;font-size:12px;color:#633806;line-height:1.6;">${teethRec.warning}</div>`:''}
+          ${teethRec.advice?`<div style="margin-top:8px;padding:8px 10px;background:#f0fbf6;border-left:3px solid var(--green);border-radius:4px;font-size:12px;color:var(--green-dark);line-height:1.6;">${teethRec.advice}</div>`:''}
         </div>`;
     }
 
@@ -630,19 +657,32 @@ function doSubmit(){
         </div>`;
     }
 
+    window._lastLineMsg=lineMsg;
+    const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const lineSVG=`<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>`;
+
     html+=`
       <div class="line-cta-card">
         <div class="line-cta-title">想要更精準的客製處方？</div>
-        <div class="line-cta-sub">點下方按鈕，您的問診資料將<strong style="color:#06C755;">自動帶入 LINE 對話</strong><br>鋸片醫生收到後直接為您診療，不用再重新說明</div>
+        <div class="line-cta-sub">問診資料將<strong style="color:#06C755;">自動帶入 LINE 對話</strong>，鋸片醫生收到後直接為您診療<br><span style="color:#aaa;font-size:12px;">同時請告知機台型號及廠商，幫助我們給出最佳建議</span></div>
         <div class="msg-preview">
           <div class="msg-preview-label">📋 將自動傳送的問診內容</div>
           <div class="msg-preview-body">${lineMsg.replace(/</g,'&lt;')}</div>
         </div>
-        <a href="${lineUrl}" class="btn-line-big" target="_blank">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
-          傳送問診資料給鋸片醫生
-        </a>
-        <div class="line-cta-note">點擊後會開啟 LINE App，訊息已預填，按送出即可</div>
+        ${isMobile?`
+          <a href="${lineUrl}" class="btn-line-big" target="_blank">${lineSVG} 傳送問診資料給鋸片醫生</a>
+          <div class="line-cta-note">點擊後開啟 LINE App，訊息已預填，按送出即可</div>
+        `:`
+          <div style="margin-bottom:14px;">
+            <div style="background:#111;border-radius:10px;padding:1.25rem;display:inline-block;">
+              <div style="font-size:11px;color:#06C755;font-weight:700;letter-spacing:.06em;margin-bottom:10px;text-align:center;">📱 用手機掃描，開啟 LINE 對話</div>
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=111111&data=${encodeURIComponent(lineUrl)}" width="160" height="160" style="display:block;border-radius:6px;" alt="LINE QR Code">
+              <div style="font-size:11px;color:#555;text-align:center;margin-top:8px;">掃描後問診資料已自動帶入</div>
+            </div>
+          </div>
+          <button class="btn-line-big" id="copy-btn" onclick="copyLineMsg()" style="background:#2a2a2a;font-size:13px;padding:10px 20px;">${lineSVG} 或點此複製問診內容，自行貼到 LINE</button>
+          <div id="copy-ok" style="display:none;font-size:12px;color:#06C755;margin-top:8px;">✓ 已複製！請開啟 LINE，搜尋 @drhawer 後貼上傳送</div>
+        `}
       </div>
       <div class="footer-links">
         <a href="https://www.hawer-knife.com/Product.asp" target="_blank">瀏覽全部產品</a>
@@ -656,6 +696,25 @@ function doSubmit(){
 
     document.getElementById('result-inner').innerHTML=html;
   },1200);
+}
+
+function copyLineMsg(){
+  const el=document.getElementById('copy-ok');
+  const btn=document.getElementById('copy-btn');
+  const text=window._lastLineMsg||'';
+  if(!text) return;
+  navigator.clipboard.writeText(text).then(()=>{
+    if(el){el.style.display='block';}
+    if(btn){btn.textContent='✓ 已複製';}
+  }).catch(()=>{
+    // fallback
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    if(el){el.style.display='block';}
+  });
 }
 
 function resetForm(){
