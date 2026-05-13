@@ -498,7 +498,7 @@ function buildDiag(data){
 }
 
 // LINE 訊息
-function buildLineMsg(data,diagTitle){
+function buildLineMsg(data,diagTitle,diagLinesPlain){
   const{name,company,phone,rpm,dia,kerf,teeth,brand,mat,thick,shapes,cuts,freqH,freqV,issues,note}=data;
   let msg='【鋸片醫生問診單】\n';
   msg+='━━━━━━━━━━━━━━\n';
@@ -520,7 +520,12 @@ function buildLineMsg(data,diagTitle){
   if(issues.length) msg+=`⚠️ 使用困擾：${issues.join('、')}\n`;
   if(note) msg+=`📝 補充說明：${note}\n`;
   msg+='━━━━━━━━━━━━━━\n';
-  msg+=`📋 AI 初步診斷：${diagTitle}\n`;
+  msg+=`📋 AI 診斷結果：${diagTitle}\n`;
+  if(diagLinesPlain&&diagLinesPlain.length){
+    msg+='\n【診斷詳細說明】\n';
+    diagLinesPlain.forEach((l,i)=>{ msg+=`${i+1}. ${l}\n`; });
+  }
+  msg+='━━━━━━━━━━━━━━\n';
   msg+='（請鋸片醫生提供進一步建議）';
   return msg;
 }
@@ -618,7 +623,9 @@ function doSubmit(){
     const chips=allVals.map(v=>`<span class="chip">${v}</span>`).join('');
     const diagLines=lines.map(l=>`<p>${l}</p>`).join('');
 
-    const lineMsg=buildLineMsg(data,diagTitle);
+    // Plain text version of diag lines (strip HTML tags)
+    const diagLinesPlain=lines.map(l=>l.replace(/<[^>]+>/g,''));
+    const lineMsg=buildLineMsg(data,diagTitle,diagLinesPlain);
     const lineUrl=`https://line.me/R/oaMessage/%40drhawer/?${encodeURIComponent(lineMsg)}`;
 
     let html=`
@@ -657,7 +664,16 @@ function doSubmit(){
         </div>`;
     }
 
-    window._lastLineMsg=lineMsg;
+    // Append teeth advice to message if present
+    let fullMsg=lineMsg;
+    if(teethRec){
+      fullMsg+='\n\n【建議齒數】\n';
+      fullMsg+=`線速度 ${teethRec.spd} m/s，建議 ${teethRec.minT}T ~ ${teethRec.maxT}T\n`;
+      fullMsg+=teethRec.reason+'\n';
+      if(teethRec.warning) fullMsg+=teethRec.warning+'\n';
+      if(teethRec.advice) fullMsg+=teethRec.advice+'\n';
+    }
+    window._lastLineMsg=fullMsg;
     const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const lineSVG=`<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>`;
 
@@ -680,7 +696,7 @@ function doSubmit(){
               <strong style="color:#fff;">sales@hawer-knife.com</strong><br>
               <span style="font-size:11px;color:#666;">鋸片醫生收到後將盡快以 LINE 或電話與您聯繫</span>
             </div>
-            <a href="${buildMailto(lineMsg,diagTitle)}" class="btn-line-big" style="background:#1D9E75;font-size:14px;padding:12px 24px;text-decoration:none;">
+            <a href="${buildMailto(fullMsg,diagTitle)}" class="btn-line-big" style="background:#1D9E75;font-size:14px;padding:12px 24px;text-decoration:none;">
               <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
               寄送問診資料給鋸片醫生
             </a>
