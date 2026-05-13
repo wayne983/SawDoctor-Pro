@@ -673,15 +673,26 @@ function doSubmit(){
           <a href="${lineUrl}" class="btn-line-big" target="_blank">${lineSVG} 傳送問診資料給鋸片醫生</a>
           <div class="line-cta-note">點擊後開啟 LINE App，訊息已預填，按送出即可</div>
         `:`
-          <div style="margin-bottom:14px;">
-            <div style="background:#111;border-radius:10px;padding:1.25rem;display:inline-block;">
-              <div style="font-size:11px;color:#06C755;font-weight:700;letter-spacing:.06em;margin-bottom:10px;text-align:center;">📱 用手機掃描，開啟 LINE 對話</div>
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=111111&data=${encodeURIComponent(lineUrl)}" width="160" height="160" style="display:block;border-radius:6px;" alt="LINE QR Code">
-              <div style="font-size:11px;color:#555;text-align:center;margin-top:8px;">掃描後問診資料已自動帶入</div>
+          <div style="background:#1e1e1e;border-radius:10px;padding:1.5rem;margin-bottom:14px;text-align:left;">
+            <div style="font-size:12px;color:#06C755;font-weight:700;margin-bottom:12px;text-align:center;letter-spacing:.04em;">📧 問診資料將寄送至鋸片醫生信箱</div>
+            <div style="font-size:13px;color:#ccc;line-height:1.8;margin-bottom:14px;">
+              點擊下方按鈕，您的完整問診資料將直接寄送至<br>
+              <strong style="color:#fff;">sales@hawer-knife.com</strong><br>
+              <span style="font-size:11px;color:#666;">鋸片醫生收到後將盡快以 LINE 或電話與您聯繫</span>
             </div>
+            <a href="${buildMailto(lineMsg,diagTitle)}" class="btn-line-big" style="background:#1D9E75;font-size:14px;padding:12px 24px;text-decoration:none;">
+              <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              寄送問診資料給鋸片醫生
+            </a>
+            <div style="font-size:11px;color:#555;margin-top:10px;">點擊後會開啟您的郵件程式，按「傳送」即完成</div>
           </div>
-          <button class="btn-line-big" id="copy-btn" onclick="copyLineMsg()" style="background:#2a2a2a;font-size:13px;padding:10px 20px;">${lineSVG} 或點此複製問診內容，自行貼到 LINE</button>
-          <div id="copy-ok" style="display:none;font-size:12px;color:#06C755;margin-top:8px;">✓ 已複製！請開啟 LINE，搜尋 @drhawer 後貼上傳送</div>
+          <div style="border-top:1px solid #2a2a2a;padding-top:12px;">
+            <div style="font-size:11px;color:#555;margin-bottom:8px;">也可用手機掃描 QR Code 直接加入 LINE：</div>
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&color=ffffff&bgcolor=1a1a1a&data=${encodeURIComponent('https://line.me/ti/p/%40drhawer')}" width="100" height="100" style="display:block;border-radius:6px;margin:0 auto;" alt="LINE QR Code">
+            <div style="font-size:10px;color:#444;text-align:center;margin-top:6px;">掃描加入後，請手動貼上問診內容</div>
+            <button class="btn-line-big" id="copy-btn" onclick="copyLineMsg()" style="background:#2a2a2a;font-size:12px;padding:8px 16px;margin-top:10px;">複製問診內容</button>
+            <div id="copy-ok" style="display:none;font-size:12px;color:#06C755;margin-top:6px;">✓ 已複製！加入 LINE 後貼上傳送</div>
+          </div>
         `}
       </div>
       <div class="footer-links">
@@ -696,6 +707,12 @@ function doSubmit(){
 
     document.getElementById('result-inner').innerHTML=html;
   },1200);
+}
+
+function buildMailto(lineMsg, diagTitle){
+  const subject=encodeURIComponent('【鋸片醫生問診單】' + diagTitle);
+  const body=encodeURIComponent(lineMsg + '\n\n---\n此訊息由 HAWER 鋸片醫生診斷系統自動產生');
+  return 'mailto:sales@hawer-knife.com?subject=' + subject + '&body=' + body;
 }
 
 function copyLineMsg(){
