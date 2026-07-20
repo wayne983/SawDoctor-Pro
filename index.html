@@ -96,8 +96,8 @@
           <h2 id="line-title">前往 LINE 補傳照片</h2>
           <p>請前往 LINE 補傳照片：機台、工件、鋸片與切面照片能幫助鋸片醫生進一步確認。</p>
           <pre class="message-preview" id="message-preview"></pre>
-          <div class="line-actions"><a class="line-button" id="line-link" href="https://line.me/ti/p/%40drhawer" target="_blank" rel="noopener">開啟官方 LINE @drhawer</a><button type="button" class="secondary-button" id="copy-message">複製問診摘要</button></div>
-          <div class="qr-wrap"><img id="line-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&amp;data=https%3A%2F%2Fline.me%2Fti%2Fp%2F%2540drhawer" alt="鋸片醫生 LINE 官方帳號 QR Code" width="96" height="96"><div>官方 LINE：<strong>@drhawer</strong><br>若按鈕無法開啟，請掃描 QR Code 或搜尋帳號。</div></div>
+          <div class="line-actions"><a class="line-button" id="line-link" href="https://lin.ee/8NCwShS" target="_blank" rel="noopener">開啟官方 LINE @drhawer</a><button type="button" class="secondary-button" id="copy-message">複製問診摘要</button></div>
+          <div class="qr-wrap"><img id="line-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&amp;data=https%3A%2F%2Flin.ee%2F8NCwShS" alt="鋸片醫生 LINE 官方帳號 QR Code" width="96" height="96"><div>官方 LINE：<strong>@drhawer</strong><br>若按鈕無法開啟，請掃描 QR Code 或搜尋帳號。</div></div>
         </section>
       </div>
 
@@ -153,7 +153,7 @@
       return'目前無法送出問診資料，請重新送出。';
     }
     function makeLineUrl(message=''){
-      return`https://line.me/R/oaMessage/%40drhawer/?${encodeURIComponent(String(message))}`;
+      return'https://lin.ee/8NCwShS';
     }
     function getProductRecommendation(input={}){if(classifyRisk(input.issues)==='danger')return null;if(input.material==='other'||input.cutDirection==='不確定')return null;const recommendation=productFamilies[input.material];return recommendation?Object.freeze({...recommendation}):null}
     function canUnlockLine(result={}){return result.sent===true||result.acknowledged===true}
@@ -164,7 +164,7 @@
   <script id="sawdoctor-app">
   (()=>{'use strict';
     const APP_CONFIG={sheetUrl:'https://script.google.com/macros/s/AKfycbybkaqAC8lJ7-UZ5ECx_l4suzysJViU347y9yenxvfUx7HoCIJ1ln86gQ-V_N90qpM/exec',lineId:'@drhawer'};
-    const core=globalThis.SawDoctorCore;const $=id=>document.getElementById(id),OFFICIAL_LINE_URL='https://line.me/ti/p/%40drhawer';let quickState=null,lastMessage='',quickRevision=0;
+    const core=globalThis.SawDoctorCore;const $=id=>document.getElementById(id),OFFICIAL_LINE_URL='https://lin.ee/8NCwShS';let quickState=null,lastMessage='',quickRevision=0;
     const issueButtons=[...document.querySelectorAll('[data-issue]')],cutButtons=[...document.querySelectorAll('[data-cut]')];
     function selected(buttons,key){return buttons.filter(button=>button.getAttribute(key)==='true').map(button=>button.dataset.issue??button.dataset.cut)}
     function setPressed(button,value){button.setAttribute('aria-pressed',String(value));if(button.hasAttribute('aria-checked'))button.setAttribute('aria-checked',String(value))}
