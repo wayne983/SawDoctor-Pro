@@ -9,7 +9,7 @@
   <meta property="og:locale" content="zh_TW">
   <meta property="og:title" content="鋸片醫生初步問診｜HAWER">
   <meta property="og:description" content="60 秒整理切削狀況，取得保守的初步評估與下一步檢查方向。">
-  <link rel="canonical" href="https://doctor.hawer-knife.com/">
+  <link rel="canonical" href="https://wayne983.github.io/SawDoctor-Pro/">
   <title>鋸片醫生初步問診｜HAWER</title>
   <style>
     :root{color-scheme:light;--ink:#13231e;--ink-soft:#31463f;--muted:#667970;--line:#dce6e1;--surface:#fff;--canvas:#f5f8f6;--green:#147a58;--green-dark:#0e5e43;--green-soft:#e8f6f0;--lime:#8fe2c3;--amber:#8a5b08;--amber-soft:#fff7e6;--red:#a13a32;--red-soft:#fff0ee;--blue:#2e6283;--blue-soft:#edf6fb;--line-green:#06c755;--shadow:0 18px 48px rgba(19,35,30,.1);--radius:18px;--radius-sm:12px}
@@ -84,6 +84,7 @@
             <div class="field-grid"><div class="field"><label for="rpm">機台轉速（RPM）</label><input id="rpm" name="rpm" type="number" inputmode="numeric" min="1" max="20000" step="1" aria-describedby="rpm-error"><p class="error-text" id="rpm-error" hidden></p></div><div class="field"><label for="brand">目前鋸片品牌</label><input id="brand" name="brand"></div></div>
             <div class="field-grid"><div class="field"><label for="diameter">鋸片外徑（mm）</label><input id="diameter" name="diameter" type="number" inputmode="decimal" min="1" max="3000" step="0.1" aria-describedby="diameter-error"><p class="error-text" id="diameter-error" hidden></p></div><div class="field"><label for="kerf">切幅／齒厚（mm）</label><input id="kerf" name="kerf" type="number" inputmode="decimal" min="0.1" max="100" step="0.1" aria-describedby="kerf-error"><p class="error-text" id="kerf-error" hidden></p></div></div>
             <div class="field-grid"><div class="field"><label for="teeth">齒數</label><input id="teeth" name="teeth" type="number" inputmode="numeric" min="1" max="1000" step="1" aria-describedby="teeth-error"><p class="error-text" id="teeth-error" hidden></p></div><div class="field"><label for="thickness">工件厚度（mm）</label><input id="thickness" name="thickness" type="number" inputmode="decimal" min="0.1" max="10000" step="0.1" aria-describedby="thickness-error"><p class="error-text" id="thickness-error" hidden></p></div></div>
+            <div class="field-grid"><div class="field"><label for="blade-type">鋸片類型</label><select id="blade-type" name="bladeType"><option value="">請選擇…</option><option value="tct">TCT 鎢鋼鋸片</option><option value="hss">HSS 高速鋼鋸片</option><option value="unknown">不確定</option></select></div><div class="field"><label for="cut-length">單次切割長度（mm）</label><input id="cut-length" name="cutLength" type="number" inputmode="decimal" min="0.1" max="100000" step="0.1" aria-describedby="cut-length-error"><p class="error-text" id="cut-length-error" hidden></p></div></div>
             <div class="field"><label for="frequency">使用頻率</label><select id="frequency" name="frequency"><option value="">請選擇…</option><option>偶爾使用</option><option>每天 1 小時以下</option><option>每天 1～4 小時</option><option>每天 4～8 小時</option><option>每天 8 小時以上</option></select></div>
             <div class="field"><label for="note">補充說明</label><textarea id="note" name="note" placeholder="例：問題何時開始、每次切多少、切面哪一側較嚴重…"></textarea></div>
             <div class="privacy-box"><input type="checkbox" id="privacy-consent" name="consent" required aria-describedby="privacy-consent-error"><div><label for="privacy-consent">我同意鋸片醫生使用以上資料處理本次問診。 <span class="required">*</span></label><p class="error-text" id="privacy-consent-error" hidden></p></div></div>
@@ -122,6 +123,21 @@
   (()=>{'use strict';
     const dangerIssues=new Set(['發燙冒煙','噪音震動']);
     const warningIssues=new Set(['黏屑塞齒','進刀速度慢','壽命短','鋒利度不足','毛邊多','切面粗糙','切割偏斜']);
+    const woodPlasticMaterials=new Set(['hardwood','softwood','board','plastic']);
+    const metalMaterials=new Set(['aluminum','aluminum_billet','steel','stainless']);
+    const issueGuidance=Object.freeze({
+      '壽命短':{causes:['鋸片磨耗、進刀條件或規格搭配可能影響使用壽命。'],improvements:['記錄鋸片使用時間，並檢查進刀速度、齒形與材料固定。']},
+      '鋒利度不足':{causes:['刀尖磨耗、附著物或齒形與材料不匹配都可能增加切削阻力。'],improvements:['先清潔並檢查刀尖磨耗，再確認齒形與材料是否相符。']},
+      '毛邊多':{causes:['鋸片鋒利度、齒數、材料固定或安裝偏擺可能造成毛邊。'],improvements:['檢查鋸片磨耗、材料固定、主軸偏擺與進刀穩定度。']},
+      '切面粗糙':{causes:['齒形、鋒利度、進刀穩定或機台偏擺可能影響切面。'],improvements:['檢查鋸片磨耗與安裝偏擺，並確認進刀是否穩定。']},
+      '切割偏斜':{causes:['工件固定、導引、主軸偏擺或鋸片剛性可能造成偏斜。'],improvements:['先停機檢查工件固定、導引、法蘭鎖固與鋸片偏擺。']},
+      '發燙冒煙':{causes:['排屑不良、進刀條件、鋸片磨耗或摩擦異常可能造成過熱。'],improvements:['先停機，檢查排屑、鋸片磨耗、安裝偏擺與異常熱源。']},
+      '噪音震動':{causes:['鋸片安裝、鎖固、主軸偏擺或鋸片損傷可能造成異常震動。'],improvements:['先停機檢查鋸片、法蘭、鎖固與主軸偏擺，確認安全後再加工。']},
+      '進刀速度慢':{causes:['鋸片鋒利度、齒形、轉速或排屑條件可能增加切削阻力。'],improvements:['檢查鋸片磨耗、齒形、轉速條件與排屑是否順暢。']},
+      '黏屑塞齒':{causes:['齒溝排屑空間、材料特性、轉速或進刀條件可能造成積屑。'],improvements:['清除積屑，並檢查齒溝空間、進刀速度、轉速與材料固定。']}
+    });
+    function startingTeeth(thickness){const value=Number(thickness);if(!Number.isFinite(value)||value<1)return null;if(value<=5)return 120;if(value<=10)return 100;if(value<=20)return 80;return 60}
+    function bladeTypeLabel(value){return({tct:'TCT 鎢鋼鋸片',hss:'HSS 高速鋼鋸片',unknown:'不確定'})[value]||'未提供'}
     const productFamilies=Object.freeze({
       hardwood:{title:'φ305～405 木工鋸片／塑料鋸片',reason:'依您選擇的木材切削條件，這個官網系列可作為初步了解方向。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1'},
       softwood:{title:'φ305～405 木工鋸片／塑料鋸片',reason:'依您選擇的木材切削條件，這個官網系列可作為初步了解方向。',url:'https://www.hawer-knife.com/ProductDetails.asp?produid=1'},
@@ -136,10 +152,50 @@
     function normalizeSelection(values=[]){const unique=[...new Set(Array.isArray(values)?values:[])];return unique.some(value=>value!=='暫無困擾')?unique.filter(value=>value!=='暫無困擾'):unique}
     function classifyRisk(issues=[]){const normalized=normalizeSelection(issues);if(normalized.some(issue=>dangerIssues.has(issue)))return'danger';if(normalized.some(issue=>warningIssues.has(issue)))return'warning';return'info'}
     function calculateBladeSpeed(diameterMm,rpm){const diameter=Number(diameterMm),rotations=Number(rpm);if(!Number.isFinite(diameter)||!Number.isFinite(rotations)||diameter<=0||rotations<=0)return null;return Number((Math.PI*diameter*rotations/60000).toFixed(2))}
-    function validatePositiveNumber(errors,data,field,label,min,max){const raw=data[field];if(raw===''||raw===null||raw===undefined)return;const value=Number(raw);if(!Number.isFinite(value)||value<min||value>max)errors.push({field,message:`${label}請輸入 ${min} 至 ${max} 之間的數值。`})}
-    function validateAdvanced(data={}){const errors=[],name=String(data.name??'').trim(),phone=String(data.phone??'').trim();if(!name)errors.push({field:'name',message:'請填寫姓名。'});else if(name.length<2)errors.push({field:'name',message:'姓名至少需要 2 個字元。'});if(!phone)errors.push({field:'phone',message:'請填寫聯絡電話。'});else{const digitCount=(phone.match(/\d/g)??[]).length;if(!/^[\d+\s()#-]+$/.test(phone)||digitCount<8||digitCount>15)errors.push({field:'phone',message:'電話請輸入 8 至 15 位數字，可使用 +、空格、-、括號或 #。'})}validatePositiveNumber(errors,data,'rpm','機台轉速',1,20000);validatePositiveNumber(errors,data,'diameter','鋸片外徑',1,3000);validatePositiveNumber(errors,data,'kerf','切幅',.1,100);validatePositiveNumber(errors,data,'teeth','齒數',1,1000);validatePositiveNumber(errors,data,'thickness','工件厚度',.1,10000);if(!data.consent)errors.push({field:'privacy-consent',message:'請先閱讀並同意個資使用說明。'});return errors}
-    function buildAssessment(input={}){const issues=normalizeSelection(input.issues),level=classifyRisk(issues),missing=[];if(!input.rpm)missing.push('機台轉速');if(!input.diameter||!input.kerf||!input.teeth)missing.push('鋸片規格');if(!input.thickness)missing.push('工件厚度');missing.push('機台、工件、鋸片與切面照片');const copy={danger:{title:'請先停機並檢查現場狀況',summary:'發現可能涉及安全或設備狀態的警訊，請勿只依網頁結果繼續加工。',checks:['確認鋸片標示與機台設定','檢查安裝、偏擺、鎖固與異常熱源','交由現場負責人或鋸片醫生確認']},warning:{title:'建議補充資料後進一步判讀',summary:'目前狀況可能與鋸片磨耗、安裝、進刀條件、材料固定或規格搭配有關。',checks:['記錄問題發生時機','補充機台與鋸片規格','提供現場照片供鋸片醫生確認']},info:{title:'目前未發現明確高風險訊號',summary:'仍需依實際機台、鋸片與工件資料確認，不代表正式安全判定。',checks:['持續觀察切面、聲音與進刀阻力','保存目前使用條件','需要選型時交由鋸片醫生確認']}}[level];return{level,...copy,missing:[...new Set(missing)],disclaimer:'本結果為系統初步評估，不是正式規格、處方或安全判定。'}}
-    function buildLineMessage(input={},assessment=buildAssessment(input)){const issues=normalizeSelection(input.issues),spec=[input.diameter&&`外徑 ${input.diameter}mm`,input.kerf&&`切幅 ${input.kerf}mm`,input.teeth&&`${input.teeth} 齒`].filter(Boolean).join('／');const lines=['【鋸片醫生初步問診】',`姓名：${String(input.name??'').trim()||'未提供'}`,`公司：${String(input.company??'').trim()||'未提供'}`,`電話：${String(input.phone??'').trim()||'未提供'}`,`切削材料：${String(input.materialLabel??input.material??'').trim()||'未提供'}`,`主要困擾：${issues.join('、')||'未提供'}`,`切割方向：${String(input.cutDirection??'').trim()||'未提供'}`,`機台型號：${String(input.machineModel??'').trim()||'未提供'}`,`機台轉速：${input.rpm?`${input.rpm} RPM`:'未提供'}`,`鋸片規格：${spec||'未提供'}`,`目前品牌：${String(input.brand??'').trim()||'未提供'}`,`工件厚度：${input.thickness?`${input.thickness}mm`:'未提供'}`,`使用頻率：${String(input.frequency??'').trim()||'未提供'}`,`補充說明：${String(input.note??'').trim()||'未提供'}`,`初步評估：${assessment.title}`,'請鋸片醫生依實際條件進一步確認。','我會補傳機台、工件、鋸片與切面照片。'];return lines.join('\n')}
+    function validatePositiveNumber(errors,data,field,label,min,max,errorField=field){const raw=data[field];if(raw===''||raw===null||raw===undefined)return;const value=Number(raw);if(!Number.isFinite(value)||value<min||value>max)errors.push({field:errorField,message:`${label}請輸入 ${min} 至 ${max} 之間的數值。`})}
+    function validateAdvanced(data={}){const errors=[],name=String(data.name??'').trim(),phone=String(data.phone??'').trim();if(!name)errors.push({field:'name',message:'請填寫姓名。'});else if(name.length<2)errors.push({field:'name',message:'姓名至少需要 2 個字元。'});if(!phone)errors.push({field:'phone',message:'請填寫聯絡電話。'});else{const digitCount=(phone.match(/\d/g)??[]).length;if(!/^[\d+\s()#-]+$/.test(phone)||digitCount<8||digitCount>15)errors.push({field:'phone',message:'電話請輸入 8 至 15 位數字，可使用 +、空格、-、括號或 #。'})}validatePositiveNumber(errors,data,'rpm','機台轉速',1,20000);validatePositiveNumber(errors,data,'diameter','鋸片外徑',1,3000);validatePositiveNumber(errors,data,'kerf','切幅',.1,100);validatePositiveNumber(errors,data,'teeth','齒數',1,1000);validatePositiveNumber(errors,data,'thickness','工件厚度',.1,10000);validatePositiveNumber(errors,data,'cutLength','單次切割長度',.1,100000,'cut-length');if(!data.consent)errors.push({field:'privacy-consent',message:'請先閱讀並同意個資使用說明。'});return errors}
+    function buildAssessment(input={}){
+      const issues=normalizeSelection(input.issues),level=classifyRisk(issues),missing=[],toothReference=[],causes=[],improvements=[],manualReview=[];
+      const actualIssues=issues.filter(issue=>issue!=='暫無困擾'),hasThickness=input.thickness!==''&&input.thickness!==null&&input.thickness!==undefined,thickness=Number(input.thickness),teeth=startingTeeth(input.thickness),cutLength=Number(input.cutLength);
+      if(!input.rpm)missing.push('機台轉速');
+      if(!input.diameter||!input.kerf||!input.teeth)missing.push('鋸片規格');
+      if(!input.thickness)missing.push('工件厚度');
+      if(!input.cutLength)missing.push('切割長度');
+      if(!input.bladeType||input.bladeType==='unknown')missing.push('鋸片類型');
+      missing.push('機台、工件、鋸片與切面照片');
+      actualIssues.forEach(issue=>{const guidance=issueGuidance[issue];if(guidance){causes.push(...guidance.causes);improvements.push(...guidance.improvements)}});
+      if(!actualIssues.length)causes.push('目前未提供明確異常現象，暫不推定故障原因。');
+      if(input.rpm&&!input.diameter)improvements.push('已收到轉速，但需搭配鋸片外徑才能判斷線速度。');
+      if(input.rpm&&input.diameter){const speed=calculateBladeSpeed(input.diameter,input.rpm);if(speed!==null)improvements.push(`依目前資料計算線速度約 ${speed} m/s；是否適合仍需配合材料、齒形與進刀條件確認。`)}
+      if(Number.isFinite(cutLength)&&cutLength>=1000){improvements.push('單次切割長度達 1000 mm 以上，需確認轉速、鋸片外徑、排屑、散熱與連續加工時間。');manualReview.push('長料切割的轉速、排屑與散熱條件需由鋸片醫生確認。')}
+      const isDanger=level==='danger',isMetal=metalMaterials.has(input.material),isHss=input.bladeType==='hss',isRip=input.cutDirection==='縱切',isCrosscut=input.cutDirection==='橫切',hasAbnormalIssue=actualIssues.length>0;
+      if(isDanger){toothReference.push('目前有安全警訊，請先停機檢查，不提供固定齒數。');manualReview.push('確認鋸片、安裝、鎖固與現場安全後，再由鋸片醫生判讀。')}
+      else if(isMetal||isHss){toothReference.push('金屬材料或 HSS 高速鋼鋸片需另行評估，不提供固定齒數。');manualReview.push('請提供材料牌號、鋸片類型、外徑、轉速與切割條件，由鋸片醫生確認。')}
+      else if(isRip){toothReference.push('縱切需依切割長度、轉速、鋸片外徑與排屑條件判斷，不套用固定齒數級距。');manualReview.push('縱切以人工判斷為主，請補充切割長度、轉速、鋸片外徑與排屑狀況。')}
+      else if(!isCrosscut){toothReference.push('目前切割方向不適用固定齒數級距。');manualReview.push('請由鋸片醫生依實際切割方向與機台條件確認。')}
+      else if(hasAbnormalIssue){toothReference.push('目前已有切削異常，通用齒數級距不作為固定選型。');manualReview.push('需配合轉速、鋸片外徑、現用齒數與異常發生狀況人工確認。')}
+      else if(!teeth){toothReference.push(hasThickness&&Number.isFinite(thickness)&&thickness<1?'工件厚度低於 1 mm，不提供固定齒數。':'需先補充有效工件厚度，才能提供通用起始齒數參考。');manualReview.push('請補充工件厚度與實際加工條件。')}
+      else if(woodPlasticMaterials.has(input.material)){toothReference.push(`依 ${input.thickness} mm 工件厚度，可先以 ${teeth}T 作為通用起始參考。`)}
+      else if(input.material==='other'){toothReference.push(`若確認為非金屬材料，依厚度可先參考 ${teeth}T 級距；其他非金屬材料僅供參考。`);manualReview.push('請補充實際材料名稱與特性，由鋸片醫生確認。')}
+      else{toothReference.push('此材料不套用木材與塑膠的通用齒數級距。');manualReview.push('請由鋸片醫生依材料、鋸片與機台條件確認。')}
+      if((!input.bladeType||input.bladeType==='unknown')&&!isMetal){manualReview.push('鋸片類型尚未確認，齒數方向僅供參考。')}
+      if(!input.rpm||!input.diameter)manualReview.push('仍需轉速與鋸片外徑才能確認線速度及齒數是否需要調整。');
+      if(!manualReview.length)manualReview.push('以上為通用起始參考，正式選型仍由鋸片醫生依現場條件確認。');
+      const copy={
+        danger:{title:'請先停機並檢查現場狀況',summary:'發現可能涉及安全或設備狀態的警訊，請勿只依網頁結果繼續加工。'},
+        warning:{title:'已完成鋸片醫生初步問診',summary:'目前狀況可能與鋸片磨耗、安裝、進刀條件、材料固定或規格搭配有關。'},
+        info:{title:'已完成鋸片醫生初步問診',summary:'已依目前提供的材料、問題與加工資料整理初步方向。'}
+      }[level];
+      const unique=list=>[...new Set(list)];
+      const result={level,...copy,toothReference:unique(toothReference),causes:unique(causes),improvements:unique(improvements),missing:unique(missing),manualReview:unique(manualReview),disclaimer:'本結果為系統初步評估，不是正式規格、處方或安全判定。'};
+      result.checks=result.improvements.length?result.improvements:result.manualReview;
+      return result;
+    }
+    function buildLineMessage(input={},assessment=buildAssessment(input)){
+      const issues=normalizeSelection(input.issues),spec=[input.diameter&&`外徑 ${input.diameter}mm`,input.kerf&&`切幅 ${input.kerf}mm`,input.teeth&&`${input.teeth} 齒`].filter(Boolean).join('／');
+      const lines=['【鋸片醫生初步問診】',`姓名：${String(input.name??'').trim()||'未提供'}`,`公司：${String(input.company??'').trim()||'未提供'}`,`電話：${String(input.phone??'').trim()||'未提供'}`,`切削材料：${String(input.materialLabel??input.material??'').trim()||'未提供'}`,`主要困擾：${issues.join('、')||'未提供'}`,`切割方向：${String(input.cutDirection??'').trim()||'未提供'}`,`機台型號：${String(input.machineModel??'').trim()||'未提供'}`,`機台轉速：${input.rpm?`${input.rpm} RPM`:'未提供'}`,`鋸片規格：${spec||'未提供'}`,`目前品牌：${String(input.brand??'').trim()||'未提供'}`,`鋸片類型：${bladeTypeLabel(input.bladeType)}`,`工件厚度：${input.thickness?`${input.thickness}mm`:'未提供'}`,`單次切割長度：${input.cutLength?`${input.cutLength}mm`:'未提供'}`,`使用頻率：${String(input.frequency??'').trim()||'未提供'}`,`補充說明：${String(input.note??'').trim()||'未提供'}`,`初步評估：${assessment.title}`,'請鋸片醫生依實際條件進一步確認。','我會補傳機台、工件、鋸片與切面照片。'];
+      return lines.join('\n');
+    }
     function validateQuick(data={}){
       const errors=[];
       if(!String(data.material??'').trim())errors.push({field:'material',message:'請選擇切削材料。'});
@@ -175,22 +231,32 @@
     function showError(id,message){const field=$(id),error=$(`${id}-error`);if(field)field.setAttribute('aria-invalid','true');if(error){error.textContent=message;error.hidden=false}}
     function validateQuick(){const errors=core.validateQuick(collectQuickInput());let first=null;errors.forEach(error=>{if(error.field==='issues'){$('issue-error').textContent=error.message;$('issue-error').hidden=false;first??=issueButtons[0]}else if(error.field==='cutDirection'){$('cut-error').textContent=error.message;$('cut-error').hidden=false;first??=cutButtons[0]}else{showError(error.field,error.message);first??=$(error.field)}});first?.focus();return errors.length===0}
     function collectQuickInput(){const material=$('material'),option=material.options[material.selectedIndex];return{material:material.value,materialLabel:option?.textContent??'',issues:core.normalizeSelection(selected(issueButtons,'aria-pressed')),cutDirection:selected(cutButtons,'aria-checked')[0]??''}}
-    function appendList(container,title,items){const box=document.createElement('div');box.className='result-block';const heading=document.createElement('h3');heading.textContent=title;const list=document.createElement('ul');items.forEach(item=>{const li=document.createElement('li');li.textContent=item;list.appendChild(li)});box.append(heading,list);container.appendChild(box)}
+    function appendList(container,title,items){if(!Array.isArray(items)||!items.length)return;const box=document.createElement('div');box.className='result-block';const heading=document.createElement('h3');heading.textContent=title;const list=document.createElement('ul');items.forEach(item=>{const li=document.createElement('li');li.textContent=item;list.appendChild(li)});box.append(heading,list);container.appendChild(box)}
     function renderAssessmentPlaceholder(){const panel=$('assessment-panel');panel.className='assessment-card assessment-placeholder';delete panel.dataset.level;const label=document.createElement('p');label.className='status-label';label.textContent='系統初步評估';const title=document.createElement('h2');title.id='assessment-title';title.textContent='完成左側三組資訊後顯示';const summary=document.createElement('p');summary.className='assessment-summary';summary.textContent='系統會整理風險訊號、可能檢查方向與仍缺少的資料。這不是正式規格或安全判定。';panel.replaceChildren(label,title,summary)}
-    function renderAssessment(result){const panel=$('assessment-panel');panel.className='assessment-card';panel.dataset.level=result.level;panel.replaceChildren();const label=document.createElement('p');label.className='status-label';label.textContent=result.level==='danger'?'⛔ 優先停機檢查':result.level==='warning'?'⚠ 建議改善':'ⓘ 初步整理';const title=document.createElement('h2');title.id='assessment-title';title.textContent=result.title;const summary=document.createElement('p');summary.className='assessment-summary';summary.textContent=result.summary;panel.append(label,title,summary);appendList(panel,'建議先檢查',result.checks);appendList(panel,'尚缺資料',result.missing);const disclaimer=document.createElement('p');disclaimer.className='disclaimer';disclaimer.textContent=result.disclaimer;panel.appendChild(disclaimer)}
+    function renderAssessment(result){
+      const panel=$('assessment-panel');panel.className='assessment-card';panel.dataset.level=result.level;panel.replaceChildren();
+      const label=document.createElement('p');label.className='status-label';label.textContent=result.level==='danger'?'⛔ 鋸片醫生初步問診':result.level==='warning'?'⚠ 鋸片醫生初步問診':'ⓘ 鋸片醫生初步問診';
+      const title=document.createElement('h2');title.id='assessment-title';title.textContent=result.title;panel.append(label,title);
+      appendList(panel,'初步判讀',[result.summary]);
+      appendList(panel,'齒數參考',result.toothReference);
+      appendList(panel,'可能原因',result.causes);
+      appendList(panel,'建議改善',result.improvements);
+      appendList(panel,'尚缺資料',result.missing);
+      appendList(panel,'人工確認提示',result.manualReview);
+      appendList(panel,'安全聲明',[result.disclaimer]);
+    }
     function renderRecommendation(recommendation){const card=$('recommendation-card');if(!recommendation){card.hidden=true;return}$('recommendation-title').textContent=recommendation.title;$('recommendation-reason').textContent=recommendation.reason;$('recommendation-link').href=recommendation.url;card.hidden=false}
     $('quick-form').addEventListener('submit',event=>{event.preventDefault();if(!validateQuick())return;quickState=collectQuickInput();renderAssessment(core.buildAssessment(quickState));renderRecommendation(core.getProductRecommendation(quickState));$('advanced-section').hidden=false;if(!matchMedia('(prefers-reduced-motion: reduce)').matches)$('assessment-panel').scrollIntoView({behavior:'smooth',block:'center'})});
-    function collectAdvancedInput(){return{name:$('name').value.trim(),company:$('company').value.trim(),phone:$('phone').value.trim(),machineModel:$('machine-model').value.trim(),rpm:$('rpm').value,brand:$('brand').value.trim(),diameter:$('diameter').value,kerf:$('kerf').value,teeth:$('teeth').value,thickness:$('thickness').value,frequency:$('frequency').value,note:$('note').value.trim(),consent:$('privacy-consent').checked}}
+    function collectAdvancedInput(){return{name:$('name').value.trim(),company:$('company').value.trim(),phone:$('phone').value.trim(),machineModel:$('machine-model').value.trim(),rpm:$('rpm').value,brand:$('brand').value.trim(),diameter:$('diameter').value,kerf:$('kerf').value,teeth:$('teeth').value,thickness:$('thickness').value,bladeType:$('blade-type').value,cutLength:$('cut-length').value,frequency:$('frequency').value,note:$('note').value.trim(),consent:$('privacy-consent').checked}}
     function clearErrors(){document.querySelectorAll('[aria-invalid="true"]').forEach(el=>el.setAttribute('aria-invalid','false'));document.querySelectorAll('.error-text').forEach(el=>{el.textContent='';el.hidden=true})}
     function renderAdvancedErrors(errors){clearErrors();let first=null;errors.forEach(error=>{showError(error.field,error.message);first??=$(error.field)});first?.focus()}
     function setSubmissionState(message){const status=$('submit-status');status.textContent=message;status.hidden=false}
     async function submitInquiry(payload){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{await fetch(APP_CONFIG.sheetUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(payload),signal:controller.signal});return{sent:true,acknowledged:false}}finally{clearTimeout(timer)}}
     function makeLineUrl(message){return core.makeLineUrl(message)}
     function revealLine(message){lastMessage=message;$('message-preview').textContent=message;$('line-link').href=makeLineUrl(message);$('line-actions').hidden=false;if(!matchMedia('(prefers-reduced-motion: reduce)').matches)$('line-actions').scrollIntoView({behavior:'smooth',block:'start'})}
-    $('advanced-form').addEventListener('submit',async event=>{event.preventDefault();$('line-actions').hidden=true;if(!quickState){setSubmissionState('請先完成系統初步評估。');return}const advanced=collectAdvancedInput(),errors=core.validateAdvanced(advanced);if(errors.length){renderAdvancedErrors(errors);return}clearErrors();const input={...quickState,...advanced},assessment=core.buildAssessment(input),payload={...input,issues:input.issues.join('、'),assessmentLevel:assessment.level,assessmentTitle:assessment.title,submittedAt:new Date().toISOString()},button=$('submit-inquiry'),submissionRevision=quickRevision;button.disabled=true;setSubmissionState('正在送出問診資料…');let result;try{result=await submitInquiry(payload)}catch(error){if(submissionRevision===quickRevision){setSubmissionState('資料尚未送出，請重新送出。');$('line-actions').hidden=true}return}finally{button.disabled=false}if(submissionRevision!==quickRevision||!quickState)return;setSubmissionState(core.submissionStatus(result));if(core.canUnlockLine(result))revealLine(core.buildLineMessage(input,assessment))});
+    $('advanced-form').addEventListener('submit',async event=>{event.preventDefault();$('line-actions').hidden=true;if(!quickState){setSubmissionState('請先完成系統初步評估。');return}const advanced=collectAdvancedInput(),errors=core.validateAdvanced(advanced);if(errors.length){renderAdvancedErrors(errors);return}clearErrors();const input={...quickState,...advanced},assessment=core.buildAssessment(input);renderAssessment(assessment);const payload={...input,issues:input.issues.join('、'),assessmentLevel:assessment.level,assessmentTitle:assessment.title,submittedAt:new Date().toISOString()},button=$('submit-inquiry'),submissionRevision=quickRevision;button.disabled=true;setSubmissionState('正在送出問診資料…');let result;try{result=await submitInquiry(payload)}catch(error){if(submissionRevision===quickRevision){setSubmissionState('資料尚未送出，請重新送出。');$('line-actions').hidden=true}return}finally{button.disabled=false}if(submissionRevision!==quickRevision||!quickState)return;setSubmissionState(core.submissionStatus(result));if(core.canUnlockLine(result))revealLine(core.buildLineMessage(input,assessment))});
     $('copy-message').addEventListener('click',async()=>{const button=$('copy-message');try{await navigator.clipboard.writeText(lastMessage)}catch{const area=document.createElement('textarea');area.value=lastMessage;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();document.execCommand('copy');area.remove()}button.textContent='✓ 已複製問診摘要';setTimeout(()=>{button.textContent='複製問診摘要'},1800)});
   })();
   </script>
 </body>
 </html>
-
