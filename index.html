@@ -154,16 +154,43 @@
     function calculateBladeSpeed(diameterMm,rpm){const diameter=Number(diameterMm),rotations=Number(rpm);if(!Number.isFinite(diameter)||!Number.isFinite(rotations)||diameter<=0||rotations<=0)return null;return Number((Math.PI*diameter*rotations/60000).toFixed(2))}
     function validatePositiveNumber(errors,data,field,label,min,max,errorField=field){const raw=data[field];if(raw===''||raw===null||raw===undefined)return;const value=Number(raw);if(!Number.isFinite(value)||value<min||value>max)errors.push({field:errorField,message:`${label}請輸入 ${min} 至 ${max} 之間的數值。`})}
     function validateAdvanced(data={}){const errors=[],name=String(data.name??'').trim(),phone=String(data.phone??'').trim();if(!name)errors.push({field:'name',message:'請填寫姓名。'});else if(name.length<2)errors.push({field:'name',message:'姓名至少需要 2 個字元。'});if(!phone)errors.push({field:'phone',message:'請填寫聯絡電話。'});else{const digitCount=(phone.match(/\d/g)??[]).length;if(!/^[\d+\s()#-]+$/.test(phone)||digitCount<8||digitCount>15)errors.push({field:'phone',message:'電話請輸入 8 至 15 位數字，可使用 +、空格、-、括號或 #。'})}validatePositiveNumber(errors,data,'rpm','機台轉速',1,20000);validatePositiveNumber(errors,data,'diameter','鋸片外徑',1,3000);validatePositiveNumber(errors,data,'kerf','切幅',.1,100);validatePositiveNumber(errors,data,'teeth','齒數',1,1000);validatePositiveNumber(errors,data,'thickness','工件厚度',.1,10000);validatePositiveNumber(errors,data,'cutLength','單次切割長度',.1,100000,'cut-length');if(!data.consent)errors.push({field:'privacy-consent',message:'請先閱讀並同意個資使用說明。'});return errors}
+    const diagnosisKnowledge=Object.freeze({
+      materials:{
+        hardwood:['木材容易因含水率、纖維方向與送料速度造成毛邊、燒焦或切面拉扯。','先確認橫切或縱切；縱切更容易受齒型、排屑與進給影響。'],
+        softwood:['軟木容易因纖維被拉扯、鋸片鈍化或進給不穩產生毛邊。','若出現燒焦，優先檢查鋸片鋒利度、排屑與送料速度。'],
+        board:['板材常見問題包含表面崩邊、毛邊與切面粗糙。','需確認是否有貼面、MDF、夾板或多層材料，因為齒型需求不同。'],
+        plastic:['塑膠與壓克力常見熔邊、白化、崩邊與沾黏。','需確認材質是 PVC、PP、PE、ABS、PMMA 或 PC，並檢查冷卻與排屑。'],
+        aluminum:['鋁合金常見沾黏、毛邊、切面霧化與壽命縮短。','優先確認材質牌號、型材厚薄、切削油方向與鋸片齒型。'],
+        aluminum_billet:['鋁胚與鋁鑄棒切削負載大，需特別注意線速度、齒數、排屑與鋸片張力。','若切面偏斜或震動，需同步檢查主軸、法蘭與工件支撐。'],
+        steel:['鋼材切削容易受材料硬度、鋸片材質、RPM、Feed 與冷卻影響。','切割偏斜時，應同時檢查鋸片剛性、齒型齒數、夾持與主軸端跳。'],
+        stainless:['不鏽鋼加工硬化明顯，若進給過慢或冷卻不足，容易發熱、磨耗與切不動。','需確認材質系列、厚度、冷卻液與鋸片是否為適用不鏽鋼的規格。'],
+        gypsum:['石膏磚與建材粉塵多，重點在排屑、集塵、齒型耐磨與安全防護。','若有震動或崩裂，需確認工件支撐與一次切割數量。'],
+        other:['材料不確定時不適合直接判斷鋸片規格。','請先補材料完整名稱、硬度或照片，再進入正式診斷。']
+      },
+      issues:{
+        '切割偏斜':['鋸片剛性、板厚或切幅不足，切削時可能被材料側向力帶偏。','齒型、齒數或前角與目前材料/切割方向不匹配，造成單側吃刀。','工件夾持、送料方向、主軸端跳或法蘭清潔度不足，可能讓切線逐步偏移。'],
+        '切面粗糙':['齒尖磨鈍、齒數不合或進給不穩，會讓切面出現拉痕與粗糙紋。','材料若有振動或夾持不足，切面會像被敲打而不是穩定切削。','RPM 與 Feed 搭配不當時，可能造成每齒切削量過大或過小。'],
+        '毛邊多':['齒型、齒數、鋸片鋒利度與材料支撐是毛邊優先檢查項。','出刀端毛邊常與工件支撐、夾持與出刀方向有關。','塑膠或鋁材毛邊需同步確認沾黏、冷卻與排屑。'],
+        '黏屑塞齒':['沾黏與塞屑通常與材料特性、排屑空間、切削油位置與齒溝容量有關。','鋁材、塑膠與軟質材料需特別確認是否有積屑瘤或熔融沾刀。','清潔鋸片後若短時間再發生，需回頭檢查齒型與切削參數。'],
+        '噪音震動':['噪音或震動可能來自鋸片張力、主軸端跳、法蘭不平、軸承磨損或工件夾持不足。','若震動突然變大，請先停機檢查裂紋、缺齒與鎖固狀態。','不要只用降低速度處理震動，需先確認機台與鋸片本體安全。'],
+        '發燙冒煙':['發燙冒煙屬高風險訊號，可能是鋸片鈍化、冷卻不足、Feed/RPM 不匹配或材料夾鋸。','若持續加工可能造成鋸片變形、裂紋或工件燒傷，應先停機。','需檢查鋸片齒尖、切削油、排屑、主軸負載與材料固定。'],
+        '壽命短':['壽命短需分辨是齒尖正常磨耗、崩齒、沾黏磨耗或回磨品質問題。','常見原因包含鋸片材質不適合、RPM/Feed 不合、冷卻不足或材料硬度變動。','需提供使用時間、切割數量、磨耗照片與是否回磨過。'],
+        '鋒利度不足':['若新鋸片也覺得不利，需優先確認材料、轉速、進給與齒型是否匹配。','若使用一段時間後變鈍，需觀察齒尖磨耗、沾黏、崩角與回磨品質。','不要只以手感判斷鋒利度，需搭配切面、聲音與負載變化。'],
+        '進刀速度慢':['進刀慢可能是鋸片鈍化、齒數過多、每齒進給太小、材料硬度高或冷卻不足。','若機台負載升高或有焦痕，需先排除摩擦發熱與排屑不良。','需確認實際 Feed、RPM、切深與一次切割數量。']
+      }
+    });
+    function collectKnowledge(input={},issues=[]){const materialNotes=diagnosisKnowledge.materials[input.material]??diagnosisKnowledge.materials.other,possibleCauses=[],followUpQuestions=['鋸片外徑、板厚、切幅、齒數、齒型與目前品牌','機台 RPM、Feed 或實際進給方式','工件尺寸、厚度/直徑、一次切割數量與夾持方式','冷卻、潤滑與排屑方式','問題發生在入刀、中段或出刀，是否突然發生或逐漸惡化','請提供鋸片、切面、工件夾持與現場照片'];issues.forEach(issue=>(diagnosisKnowledge.issues[issue]??[]).forEach(item=>possibleCauses.push(item)));if(input.cutDirection==='縱切')possibleCauses.push('縱切時鋸片承受較長距離導向，若鋸片剛性、夾持或進給方向不足，較容易累積偏移。');if(input.material==='steel'||input.material==='stainless')followUpQuestions.push('鋼材牌號、熱處理/硬度，以及是否有加工硬化或材料變形');if(input.material==='plastic')followUpQuestions.push('塑膠完整材質，例如 PVC、PP、PE、ABS、PMMA 或 PC');if(input.material==='aluminum'||input.material==='aluminum_billet')followUpQuestions.push('鋁合金牌號、型材形狀、切削油種類與噴油位置');return{knowledgeNotes:[...new Set(materialNotes)],possibleCauses:[...new Set(possibleCauses)].slice(0,4),followUpQuestions:[...new Set(followUpQuestions)].slice(0,8)}}
     function buildAssessment(input={}){
       const issues=normalizeSelection(input.issues),level=classifyRisk(issues),missing=[],toothReference=[],causes=[],improvements=[],manualReview=[];
-      const actualIssues=issues.filter(issue=>issue!=='暫無困擾'),hasThickness=input.thickness!==''&&input.thickness!==null&&input.thickness!==undefined,thickness=Number(input.thickness),teeth=startingTeeth(input.thickness),cutLength=Number(input.cutLength);
-      if(!input.rpm)missing.push('機台轉速');
-      if(!input.diameter||!input.kerf||!input.teeth)missing.push('鋸片規格');
-      if(!input.thickness)missing.push('工件厚度');
+      const knowledge=collectKnowledge(input,issues),actualIssues=issues.filter(issue=>issue!=='暫無困擾'),hasThickness=input.thickness!==''&&input.thickness!==null&&input.thickness!==undefined,thickness=Number(input.thickness),teeth=startingTeeth(input.thickness),cutLength=Number(input.cutLength);
+      if(!input.rpm)missing.push('機台轉速 RPM');
+      if(!input.diameter||!input.kerf||!input.teeth)missing.push('鋸片完整規格：外徑、板厚、切幅、齒數、齒型');
+      if(!input.thickness)missing.push('工件尺寸或厚度');
       if(!input.cutLength)missing.push('切割長度');
       if(!input.bladeType||input.bladeType==='unknown')missing.push('鋸片類型');
       missing.push('機台、工件、鋸片與切面照片');
       actualIssues.forEach(issue=>{const guidance=issueGuidance[issue];if(guidance){causes.push(...guidance.causes);improvements.push(...guidance.improvements)}});
+      causes.push(...knowledge.possibleCauses);
       if(!actualIssues.length)causes.push('目前未提供明確異常現象，暫不推定故障原因。');
       if(input.rpm&&!input.diameter)improvements.push('已收到轉速，但需搭配鋸片外徑才能判斷線速度。');
       if(input.rpm&&input.diameter){const speed=calculateBladeSpeed(input.diameter,input.rpm);if(speed!==null)improvements.push(`依目前資料計算線速度約 ${speed} m/s；是否適合仍需配合材料、齒形與進刀條件確認。`)}
@@ -182,18 +209,20 @@
       if(!input.rpm||!input.diameter)manualReview.push('仍需轉速與鋸片外徑才能確認線速度及齒數是否需要調整。');
       if(!manualReview.length)manualReview.push('以上為通用起始參考，正式選型仍由鋸片醫生依現場條件確認。');
       const copy={
-        danger:{title:'請先停機並檢查現場狀況',summary:'發現可能涉及安全或設備狀態的警訊，請勿只依網頁結果繼續加工。'},
-        warning:{title:'已完成鋸片醫生初步問診',summary:'目前狀況可能與鋸片磨耗、安裝、進刀條件、材料固定或規格搭配有關。'},
+        danger:{title:'請先停機檢查，再進一步問診',summary:'發現可能涉及安全或設備狀態的警訊，請勿只依網頁結果繼續加工。'},
+        warning:{title:'已完成鋸片醫生初步問診',summary:'依材料與症狀比對，目前較像鋸片規格/磨耗、機台夾持、切削參數或冷卻排屑其中幾項共同造成，還不能用單一症狀直接確診。'},
         info:{title:'已完成鋸片醫生初步問診',summary:'已依目前提供的材料、問題與加工資料整理初步方向。'}
       }[level];
       const unique=list=>[...new Set(list)];
-      const result={level,...copy,toothReference:unique(toothReference),causes:unique(causes),improvements:unique(improvements),missing:unique(missing),manualReview:unique(manualReview),disclaimer:'本結果為系統初步評估，不是正式規格、處方或安全判定。'};
+      const result={level,...copy,knowledgeNotes:unique(knowledge.knowledgeNotes),possibleCauses:unique(knowledge.possibleCauses),followUpQuestions:unique(knowledge.followUpQuestions),toothReference:unique(toothReference),causes:unique(causes),improvements:unique(improvements),missing:unique(missing),manualReview:unique(manualReview),disclaimer:'本結果依鋸片醫生知識庫做初步整理，不直接確診、不保證更換單一規格一定改善；正式判斷仍需真人技師確認。'};
       result.checks=result.improvements.length?result.improvements:result.manualReview;
       return result;
     }
     function buildLineMessage(input={},assessment=buildAssessment(input)){
       const issues=normalizeSelection(input.issues),spec=[input.diameter&&`外徑 ${input.diameter}mm`,input.kerf&&`切幅 ${input.kerf}mm`,input.teeth&&`${input.teeth} 齒`].filter(Boolean).join('／');
-      const lines=['【鋸片醫生初步問診】',`姓名：${String(input.name??'').trim()||'未提供'}`,`公司：${String(input.company??'').trim()||'未提供'}`,`電話：${String(input.phone??'').trim()||'未提供'}`,`切削材料：${String(input.materialLabel??input.material??'').trim()||'未提供'}`,`主要困擾：${issues.join('、')||'未提供'}`,`切割方向：${String(input.cutDirection??'').trim()||'未提供'}`,`機台型號：${String(input.machineModel??'').trim()||'未提供'}`,`機台轉速：${input.rpm?`${input.rpm} RPM`:'未提供'}`,`鋸片規格：${spec||'未提供'}`,`目前品牌：${String(input.brand??'').trim()||'未提供'}`,`鋸片類型：${bladeTypeLabel(input.bladeType)}`,`工件厚度：${input.thickness?`${input.thickness}mm`:'未提供'}`,`單次切割長度：${input.cutLength?`${input.cutLength}mm`:'未提供'}`,`使用頻率：${String(input.frequency??'').trim()||'未提供'}`,`補充說明：${String(input.note??'').trim()||'未提供'}`,`初步評估：${assessment.title}`,'請鋸片醫生依實際條件進一步確認。','我會補傳機台、工件、鋸片與切面照片。'];
+      const causes=(assessment.causes??assessment.possibleCauses??[]).map((item,index)=>`${index+1}. ${item}`).join('\n')||'待補充資料後判斷';
+      const questions=(assessment.followUpQuestions??[]).map((item,index)=>`${index+1}. ${item}`).join('\n')||'待鋸片醫生補問';
+      const lines=['【鋸片醫生初步問診】',`姓名：${String(input.name??'').trim()||'未提供'}`,`公司：${String(input.company??'').trim()||'未提供'}`,`電話：${String(input.phone??'').trim()||'未提供'}`,`切削材料：${String(input.materialLabel??input.material??'').trim()||'未提供'}`,`主要困擾：${issues.join('、')||'未提供'}`,`切割方向：${String(input.cutDirection??'').trim()||'未提供'}`,`機台型號：${String(input.machineModel??'').trim()||'未提供'}`,`機台轉速：${input.rpm?`${input.rpm} RPM`:'未提供'}`,`鋸片規格：${spec||'未提供'}`,`目前品牌：${String(input.brand??'').trim()||'未提供'}`,`鋸片類型：${bladeTypeLabel(input.bladeType)}`,`工件厚度：${input.thickness?`${input.thickness}mm`:'未提供'}`,`單次切割長度：${input.cutLength?`${input.cutLength}mm`:'未提供'}`,`使用頻率：${String(input.frequency??'').trim()||'未提供'}`,`補充說明：${String(input.note??'').trim()||'未提供'}`,`初步評估：${assessment.title}`,'可能原因：',causes,'建議補問：',questions,'請鋸片醫生依實際條件進一步確認。','我會補傳機台、工件、鋸片與切面照片。'];
       return lines.join('\n');
     }
     function validateQuick(data={}){
@@ -235,12 +264,14 @@
     function renderAssessmentPlaceholder(){const panel=$('assessment-panel');panel.className='assessment-card assessment-placeholder';delete panel.dataset.level;const label=document.createElement('p');label.className='status-label';label.textContent='系統初步評估';const title=document.createElement('h2');title.id='assessment-title';title.textContent='完成左側三組資訊後顯示';const summary=document.createElement('p');summary.className='assessment-summary';summary.textContent='系統會整理風險訊號、可能檢查方向與仍缺少的資料。這不是正式規格或安全判定。';panel.replaceChildren(label,title,summary)}
     function renderAssessment(result){
       const panel=$('assessment-panel');panel.className='assessment-card';panel.dataset.level=result.level;panel.replaceChildren();
-      const label=document.createElement('p');label.className='status-label';label.textContent=result.level==='danger'?'⛔ 鋸片醫生初步問診':result.level==='warning'?'⚠ 鋸片醫生初步問診':'ⓘ 鋸片醫生初步問診';
+      const label=document.createElement('p');label.className='status-label';label.textContent=result.level==='danger'?'鋸片醫生停機初診':result.level==='warning'?'鋸片醫生初步鑑別':'鋸片醫生初步問診';
       const title=document.createElement('h2');title.id='assessment-title';title.textContent=result.title;panel.append(label,title);
       appendList(panel,'初步判讀',[result.summary]);
+      appendList(panel,'材料判讀',result.knowledgeNotes);
       appendList(panel,'齒數參考',result.toothReference);
-      appendList(panel,'可能原因',result.causes);
+      appendList(panel,'可能原因',result.causes?.length?result.causes:result.possibleCauses);
       appendList(panel,'建議改善',result.improvements);
+      appendList(panel,'建議補問',result.followUpQuestions);
       appendList(panel,'尚缺資料',result.missing);
       appendList(panel,'人工確認提示',result.manualReview);
       appendList(panel,'安全聲明',[result.disclaimer]);
