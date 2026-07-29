@@ -195,7 +195,8 @@ const output = context.doPost({
   parameter: {payload: JSON.stringify(makePayload('request-003'))}
 });
 assert.equal(output.mode, 'ALLOWALL');
-assert.ok(output.content.includes('parent.postMessage'));
+assert.ok(output.content.includes('top.postMessage'));
+assert.ok(!output.content.includes('parent.postMessage'));
 assert.ok(output.content.includes('https://wayne983.github.io'));
 assert.ok(output.content.includes('request-003'));
 

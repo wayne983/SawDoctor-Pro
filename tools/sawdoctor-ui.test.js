@@ -69,6 +69,8 @@ for (const copy of [
   '掛號號碼',
   '複製掛號編號',
   '醫生會親自為您診斷',
+  '請進到診間看診',
+  '進入官方 LINE 診間看診',
   '掛號尚未完成，資料未確認寄出'
 ]) {
   assert.ok(html.includes(copy), `registration UI should include ${copy}`);
@@ -77,7 +79,8 @@ assert.doesNotMatch(html, /id="message-preview"/, 'customer page should not disp
 assert.match(html, /id="registration-number"/, 'success card should expose the registration number');
 assert.match(html, /id="copy-registration"/, 'success card should include a registration-copy button');
 assert.match(html, /function createRequestId\(\)/, 'submission should create an idempotency key');
-assert.match(html, /event\.source!==submissionFrame\.contentWindow/, 'callback should be bound to its submission iframe');
+assert.match(html, /function isTrustedRegistrationOrigin\(origin\)/, 'callback should validate the Google Apps Script message origin');
+assert.doesNotMatch(html, /event\.source!==submissionFrame\.contentWindow/, 'nested Apps Script callbacks should not be rejected by the outer iframe source');
 assert.match(html, /event\.data\.requestId!==requestId/, 'callback should match the expected request ID');
 assert.match(html, /field\.value=JSON\.stringify\(\{\.\.\.payload,requestId\}\)/, 'submission should send the request ID with the payload');
 console.log('SawDoctor UI tests passed');

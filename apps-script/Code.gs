@@ -199,7 +199,7 @@ function registerInquiry_(payload) {
 
 function callbackOutput_(result) {
   var json = JSON.stringify(result).replace(/</g, '\\u003c');
-  var html = '<script>parent.postMessage(' + json + ',' +
+  var html = '<script>top.postMessage(' + json + ',' +
     JSON.stringify(CONFIG.allowedParentOrigin) + ');</script>';
   return HtmlService.createHtmlOutput(html)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
