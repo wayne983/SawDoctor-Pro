@@ -135,4 +135,52 @@ assert.ok(
   grinderMessage.includes('安全警示：') && grinderMessage.includes('斷齒飛散'),
   'LINE inquiry summary should carry the safety warning to the doctor'
 );
+
+const sizeIssueAssessment = core.buildAssessment({
+  material: 'steel',
+  issues: ['尺寸不符合／切不到'],
+  cutDirection: '橫切',
+  largerBladeFit: '',
+  clearanceMm: ''
+});
+assert.ok(
+  sizeIssueAssessment.causes.some((item) => item.includes('外徑') && item.includes('切深')),
+  'size issue should explain blade diameter and cutting-depth constraints'
+);
+assert.ok(
+  sizeIssueAssessment.followUpQuestions.some((item) => item.includes('更大尺寸')),
+  'size issue should ask whether a larger blade fits'
+);
+assert.ok(
+  sizeIssueAssessment.followUpQuestions.some((item) => item.includes('剩餘空間')),
+  'size issue should ask for minimum machine clearance'
+);
+
+const unknownBladeFitAssessment = core.buildAssessment({
+  material: 'steel',
+  issues: ['尺寸不符合／切不到'],
+  cutDirection: '橫切',
+  largerBladeFit: 'unknown',
+  clearanceMm: ''
+});
+assert.ok(
+  unknownBladeFitAssessment.missing.some((item) => item.includes('護罩') && item.includes('照片')),
+  'unknown fit should request blade, arbor, guard, and surrounding-space photos'
+);
+
+const completeBladeFitAssessment = core.buildAssessment({
+  material: 'steel',
+  issues: ['尺寸不符合／切不到'],
+  cutDirection: '橫切',
+  largerBladeFit: 'yes',
+  clearanceMm: '18'
+});
+assert.ok(
+  completeBladeFitAssessment.followUpQuestions.every((item) => !item.includes('更大尺寸')),
+  'completed fit answer should not be asked again'
+);
+assert.ok(
+  completeBladeFitAssessment.followUpQuestions.every((item) => !item.includes('剩餘空間')),
+  'completed clearance should not be asked again'
+);
 console.log('SawDoctorCore diagnosis tests passed');

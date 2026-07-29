@@ -60,7 +60,7 @@
             <fieldset class="field">
               <legend id="issue-label">目前最困擾的問題 <span class="required" aria-hidden="true">*</span></legend>
               <div class="choice-grid" id="issue-options" role="group" aria-labelledby="issue-label">
-                <button type="button" class="choice" data-issue="壽命短" aria-pressed="false">壽命短</button><button type="button" class="choice" data-issue="鋒利度不足" aria-pressed="false">鋒利度不足</button><button type="button" class="choice" data-issue="毛邊多" aria-pressed="false">毛邊多</button><button type="button" class="choice" data-issue="切面粗糙" aria-pressed="false">切面粗糙</button><button type="button" class="choice" data-issue="切割偏斜" aria-pressed="false">切割偏斜</button><button type="button" class="choice" data-issue="發燙冒煙" aria-pressed="false">發燙冒煙</button><button type="button" class="choice" data-issue="噪音震動" aria-pressed="false">噪音震動</button><button type="button" class="choice" data-issue="進刀速度慢" aria-pressed="false">進刀速度慢</button><button type="button" class="choice" data-issue="黏屑塞齒" aria-pressed="false">黏屑塞齒</button><button type="button" class="choice" data-issue="暫無困擾" aria-pressed="false">暫無困擾</button>
+                <button type="button" class="choice" data-issue="壽命短" aria-pressed="false">壽命短</button><button type="button" class="choice" data-issue="鋒利度不足" aria-pressed="false">鋒利度不足</button><button type="button" class="choice" data-issue="毛邊多" aria-pressed="false">毛邊多</button><button type="button" class="choice" data-issue="切面粗糙" aria-pressed="false">切面粗糙</button><button type="button" class="choice" data-issue="切割偏斜" aria-pressed="false">切割偏斜</button><button type="button" class="choice" data-issue="發燙冒煙" aria-pressed="false">發燙冒煙</button><button type="button" class="choice" data-issue="噪音震動" aria-pressed="false">噪音震動</button><button type="button" class="choice" data-issue="進刀速度慢" aria-pressed="false">進刀速度慢</button><button type="button" class="choice" data-issue="黏屑塞齒" aria-pressed="false">黏屑塞齒</button><button type="button" class="choice" data-issue="尺寸不符合／切不到" aria-pressed="false">尺寸不符合／切不到</button><button type="button" class="choice" data-issue="暫無困擾" aria-pressed="false">暫無困擾</button>
               </div>
               <p class="error-text" id="issue-error" hidden></p>
             </fieldset>
@@ -85,6 +85,7 @@
             <div class="field-grid"><div class="field"><label for="diameter">鋸片外徑（mm）</label><input id="diameter" name="diameter" type="number" inputmode="decimal" min="1" max="3000" step="0.1" aria-describedby="diameter-error"><p class="error-text" id="diameter-error" hidden></p></div><div class="field"><label for="kerf">切幅／齒厚（mm）</label><input id="kerf" name="kerf" type="number" inputmode="decimal" min="0.1" max="100" step="0.1" aria-describedby="kerf-error"><p class="error-text" id="kerf-error" hidden></p></div></div>
             <div class="field-grid"><div class="field"><label for="teeth">齒數</label><input id="teeth" name="teeth" type="number" inputmode="numeric" min="1" max="1000" step="1" aria-describedby="teeth-error"><p class="error-text" id="teeth-error" hidden></p></div><div class="field"><label for="thickness">工件厚度（mm）</label><input id="thickness" name="thickness" type="number" inputmode="decimal" min="0.1" max="10000" step="0.1" aria-describedby="thickness-error"><p class="error-text" id="thickness-error" hidden></p></div></div>
             <div class="field-grid"><div class="field"><label for="blade-type">鋸片類型</label><select id="blade-type" name="bladeType"><option value="">請選擇…</option><option value="tct">TCT 鎢鋼鋸片</option><option value="hss">HSS 高速鋼鋸片</option><option value="unknown">不確定</option></select></div><div class="field"><label for="cut-length">單次切割長度（mm）</label><input id="cut-length" name="cutLength" type="number" inputmode="decimal" min="0.1" max="100000" step="0.1" aria-describedby="cut-length-error"><p class="error-text" id="cut-length-error" hidden></p></div></div>
+            <div class="field-grid"><div class="field"><label for="larger-blade-fit">機台是否可以安裝更大尺寸鋸片</label><select id="larger-blade-fit" name="largerBladeFit"><option value="">請選擇…</option><option value="yes">可以</option><option value="no">不可以</option><option value="unknown">不確定</option></select></div><div class="field"><label for="clearance-mm">鋸片外圍最小剩餘空間（mm）</label><input id="clearance-mm" name="clearanceMm" type="number" inputmode="decimal" min="0" max="3000" step="0.1" aria-describedby="clearance-mm-error"><p class="error-text" id="clearance-mm-error" hidden></p></div></div>
             <div class="field"><label for="frequency">使用頻率</label><select id="frequency" name="frequency"><option value="">請選擇…</option><option>偶爾使用</option><option>每天 1 小時以下</option><option>每天 1～4 小時</option><option>每天 4～8 小時</option><option>每天 8 小時以上</option></select></div>
             <div class="field"><label for="note">補充說明</label><textarea id="note" name="note" placeholder="例：問題何時開始、每次切多少、切面哪一側較嚴重…"></textarea></div>
             <div class="privacy-box"><input type="checkbox" id="privacy-consent" name="consent" required aria-describedby="privacy-consent-error"><div><label for="privacy-consent">我同意鋸片醫生使用以上資料處理本次問診。 <span class="required">*</span></label><p class="error-text" id="privacy-consent-error" hidden></p></div></div>
@@ -134,7 +135,8 @@
       '發燙冒煙':{causes:['排屑不良、進刀條件、鋸片磨耗或摩擦異常可能造成過熱。'],improvements:['先停機，檢查排屑、鋸片磨耗、安裝偏擺與異常熱源。']},
       '噪音震動':{causes:['鋸片安裝、鎖固、主軸偏擺或鋸片損傷可能造成異常震動。'],improvements:['先停機檢查鋸片、法蘭、鎖固與主軸偏擺，確認安全後再加工。']},
       '進刀速度慢':{causes:['鋸片鋒利度、齒形、轉速或排屑條件可能增加切削阻力。'],improvements:['檢查鋸片磨耗、齒形、轉速條件與排屑是否順暢。']},
-      '黏屑塞齒':{causes:['齒溝排屑空間、材料特性、轉速或進刀條件可能造成積屑。'],improvements:['清除積屑，並檢查齒溝空間、進刀速度、轉速與材料固定。']}
+      '黏屑塞齒':{causes:['齒溝排屑空間、材料特性、轉速或進刀條件可能造成積屑。'],improvements:['清除積屑，並檢查齒溝空間、進刀速度、轉速與材料固定。']},
+      '尺寸不符合／切不到':{causes:['可能與鋸片外徑、機台可安裝尺寸、護罩或周圍空間，以及實際切深不足有關。'],improvements:['先確認機台是否允許安裝更大外徑鋸片，並量測鋸片外圍至護罩或機台限制位置的最小剩餘空間。']}
     });
     function startingTeeth(thickness){const value=Number(thickness);if(!Number.isFinite(value)||value<1)return null;if(value<=5)return 120;if(value<=10)return 100;if(value<=20)return 80;return 60}
     function bladeTypeLabel(value){return({tct:'TCT 鎢鋼鋸片',hss:'HSS 高速鋼鋸片',unknown:'不確定'})[value]||'未提供'}
@@ -153,7 +155,7 @@
     function classifyRisk(issues=[]){const normalized=normalizeSelection(issues);if(normalized.some(issue=>dangerIssues.has(issue)))return'danger';if(normalized.some(issue=>warningIssues.has(issue)))return'warning';return'info'}
     function calculateBladeSpeed(diameterMm,rpm){const diameter=Number(diameterMm),rotations=Number(rpm);if(!Number.isFinite(diameter)||!Number.isFinite(rotations)||diameter<=0||rotations<=0)return null;return Number((Math.PI*diameter*rotations/60000).toFixed(2))}
     function validatePositiveNumber(errors,data,field,label,min,max,errorField=field){const raw=data[field];if(raw===''||raw===null||raw===undefined)return;const value=Number(raw);if(!Number.isFinite(value)||value<min||value>max)errors.push({field:errorField,message:`${label}請輸入 ${min} 至 ${max} 之間的數值。`})}
-    function validateAdvanced(data={}){const errors=[],name=String(data.name??'').trim(),phone=String(data.phone??'').trim();if(!name)errors.push({field:'name',message:'請填寫姓名。'});else if(name.length<2)errors.push({field:'name',message:'姓名至少需要 2 個字元。'});if(!phone)errors.push({field:'phone',message:'請填寫聯絡電話。'});else{const digitCount=(phone.match(/\d/g)??[]).length;if(!/^[\d+\s()#-]+$/.test(phone)||digitCount<8||digitCount>15)errors.push({field:'phone',message:'電話請輸入 8 至 15 位數字，可使用 +、空格、-、括號或 #。'})}validatePositiveNumber(errors,data,'rpm','機台轉速',1,20000);validatePositiveNumber(errors,data,'diameter','鋸片外徑',1,3000);validatePositiveNumber(errors,data,'kerf','切幅',.1,100);validatePositiveNumber(errors,data,'teeth','齒數',1,1000);validatePositiveNumber(errors,data,'thickness','工件厚度',.1,10000);validatePositiveNumber(errors,data,'cutLength','單次切割長度',.1,100000,'cut-length');if(!data.consent)errors.push({field:'privacy-consent',message:'請先閱讀並同意個資使用說明。'});return errors}
+    function validateAdvanced(data={}){const errors=[],name=String(data.name??'').trim(),phone=String(data.phone??'').trim();if(!name)errors.push({field:'name',message:'請填寫姓名。'});else if(name.length<2)errors.push({field:'name',message:'姓名至少需要 2 個字元。'});if(!phone)errors.push({field:'phone',message:'請填寫聯絡電話。'});else{const digitCount=(phone.match(/\d/g)??[]).length;if(!/^[\d+\s()#-]+$/.test(phone)||digitCount<8||digitCount>15)errors.push({field:'phone',message:'電話請輸入 8 至 15 位數字，可使用 +、空格、-、括號或 #。'})}validatePositiveNumber(errors,data,'rpm','機台轉速',1,20000);validatePositiveNumber(errors,data,'diameter','鋸片外徑',1,3000);validatePositiveNumber(errors,data,'kerf','切幅',.1,100);validatePositiveNumber(errors,data,'teeth','齒數',1,1000);validatePositiveNumber(errors,data,'thickness','工件厚度',.1,10000);validatePositiveNumber(errors,data,'cutLength','單次切割長度',.1,100000,'cut-length');validatePositiveNumber(errors,data,'clearanceMm','鋸片外圍最小剩餘空間',0,3000,'clearance-mm');if(!data.consent)errors.push({field:'privacy-consent',message:'請先閱讀並同意個資使用說明。'});return errors}
     const diagnosisKnowledge=Object.freeze({
       materials:{
         hardwood:['木材容易因含水率、纖維方向與送料速度造成毛邊、燒焦或切面拉扯。','先確認橫切或縱切；縱切更容易受齒型、排屑與進給影響。'],
@@ -188,6 +190,10 @@
       if(!input.rpm)followUpQuestions.push('機台 RPM');
       if(!input.thickness)followUpQuestions.push('工件尺寸或厚度／直徑');
       if(!input.cutLength)followUpQuestions.push('單次切割長度或一次切割數量');
+      if(issues.includes('尺寸不符合／切不到')){
+        if(!input.largerBladeFit)followUpQuestions.push('機台是否可以安裝更大尺寸鋸片');
+        if(input.clearanceMm===''||input.clearanceMm===null||input.clearanceMm===undefined)followUpQuestions.push('鋸片外圍最小剩餘空間（mm）');
+      }
       followUpQuestions.push('實際 Feed 或進給方式','工件夾持方式','冷卻、潤滑與排屑方式','問題發生在入刀、中段或出刀，是否突然發生或逐漸惡化');
       issues.forEach(issue=>(diagnosisKnowledge.issues[issue]??[]).forEach(item=>possibleCauses.push(item)));
       if(input.cutDirection==='縱切')possibleCauses.push('縱切時鋸片承受較長距離導向，若鋸片剛性、夾持或進給方向不足，較容易累積偏移。');
@@ -208,6 +214,7 @@
       const knowledge=collectKnowledge(input,issues),actualIssues=issues.filter(issue=>issue!=='暫無困擾'),hasThickness=input.thickness!==''&&input.thickness!==null&&input.thickness!==undefined,thickness=Number(input.thickness),teeth=startingTeeth(input.thickness),cutLength=Number(input.cutLength);
       if(!input.bladeType||input.bladeType==='unknown')missing.push('鋸片類型');
       missing.push('機台、工件、鋸片與切面照片');
+      if(issues.includes('尺寸不符合／切不到')&&(input.largerBladeFit==='no'||input.largerBladeFit==='unknown'))missing.push('鋸片、主軸、護罩及周圍空間照片');
       const rpm=Number(input.rpm),isMetalTct=metalMaterials.has(input.material)&&input.bladeType==='tct';
       if(isMetalTct)safetyWarnings.push('金屬切斷使用 TCT 齒狀鋸片時，不得安裝在高速砂輪切斷機或角磨機上。');
       if(isPhi355TctMetal(input)&&Number.isFinite(rpm)&&rpm>1800){
@@ -306,8 +313,8 @@
       appendList(panel,'齒數參考',result.toothReference);
       appendList(panel,'可能原因',result.causes?.length?result.causes:result.possibleCauses);
       appendList(panel,'建議改善',result.improvements);
-      appendList(panel,'建議補問',result.followUpQuestions);
-      appendList(panel,'尚缺資料',result.missing);
+      appendList(panel,'鋸片醫生希望您能提供',result.followUpQuestions);
+      appendList(panel,'請追加補充',result.missing);
       appendList(panel,'人工確認提示',result.manualReview);
       appendList(panel,'安全聲明',[result.disclaimer]);
       if(result.requiresHumanReview){
@@ -321,8 +328,8 @@
       }
     }
     function renderRecommendation(recommendation){const card=$('recommendation-card');if(!recommendation){card.hidden=true;return}$('recommendation-title').textContent=recommendation.title;$('recommendation-reason').textContent=recommendation.reason;$('recommendation-link').href=recommendation.url;card.hidden=false}
-    $('quick-form').addEventListener('submit',event=>{event.preventDefault();if(!validateQuick())return;quickState=collectQuickInput();renderAssessment(core.buildAssessment(quickState));renderRecommendation(core.getProductRecommendation(quickState));$('advanced-section').hidden=false;if(!matchMedia('(prefers-reduced-motion: reduce)').matches)$('assessment-panel').scrollIntoView({behavior:'smooth',block:'center'})});
-    function collectAdvancedInput(){return{name:$('name').value.trim(),company:$('company').value.trim(),phone:$('phone').value.trim(),machineModel:$('machine-model').value.trim(),rpm:$('rpm').value,brand:$('brand').value.trim(),diameter:$('diameter').value,kerf:$('kerf').value,teeth:$('teeth').value,thickness:$('thickness').value,bladeType:$('blade-type').value,cutLength:$('cut-length').value,frequency:$('frequency').value,note:$('note').value.trim(),consent:$('privacy-consent').checked}}
+    $('quick-form').addEventListener('submit',event=>{event.preventDefault();if(!validateQuick())return;quickState=collectQuickInput();renderAssessment(core.buildAssessment(quickState));renderRecommendation(core.getProductRecommendation(quickState));$('advanced-section').hidden=false;if(!matchMedia('(prefers-reduced-motion: reduce)').matches)$('assessment-panel').scrollIntoView({behavior:'smooth',block:'start'})});
+    function collectAdvancedInput(){return{name:$('name').value.trim(),company:$('company').value.trim(),phone:$('phone').value.trim(),machineModel:$('machine-model').value.trim(),rpm:$('rpm').value,brand:$('brand').value.trim(),diameter:$('diameter').value,kerf:$('kerf').value,teeth:$('teeth').value,thickness:$('thickness').value,bladeType:$('blade-type').value,cutLength:$('cut-length').value,largerBladeFit:$('larger-blade-fit').value,clearanceMm:$('clearance-mm').value,frequency:$('frequency').value,note:$('note').value.trim(),consent:$('privacy-consent').checked}}
     function clearErrors(){document.querySelectorAll('[aria-invalid="true"]').forEach(el=>el.setAttribute('aria-invalid','false'));document.querySelectorAll('.error-text').forEach(el=>{el.textContent='';el.hidden=true})}
     function renderAdvancedErrors(errors){clearErrors();let first=null;errors.forEach(error=>{showError(error.field,error.message);first??=$(error.field)});first?.focus()}
     function setSubmissionState(message){const status=$('submit-status');status.textContent=message;status.hidden=false}

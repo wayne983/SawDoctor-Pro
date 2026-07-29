@@ -52,4 +52,15 @@ assert.match(
   /\.assessment-line-button\{width:100%;margin-top:16px\}/,
   'assessment LINE button should be full-width and clearly separated'
 );
+
+assert.match(html, /data-issue="尺寸不符合／切不到"/, 'size issue choice should be available');
+assert.match(html, /id="larger-blade-fit"/, 'larger-blade fit field should be available');
+assert.match(html, /id="clearance-mm"/, 'minimum clearance field should be available');
+assert.match(html, /鋸片醫生希望您能提供/, 'follow-up heading should use SawDoctor wording');
+assert.match(html, /請追加補充/, 'missing-data heading should request an addition');
+assert.match(
+  html,
+  /assessment-panel'\)\.scrollIntoView\(\{behavior:'smooth',block:'start'\}\)/,
+  'quick assessment should scroll to the top of the diagnosis card'
+);
 console.log('SawDoctor UI tests passed');
