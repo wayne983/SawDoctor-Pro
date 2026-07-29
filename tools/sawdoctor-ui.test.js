@@ -12,18 +12,18 @@ assert.match(
 );
 assert.match(
   html,
-  /if\(result\.requiresHumanReview\)\{[\s\S]*?assessment-line-button[\s\S]*?OFFICIAL_LINE_URL/,
-  'human-review assessment should render a direct official LINE link'
+  /if\(result\.requiresHumanReview\)\{[\s\S]*?assessment-registration-button[\s\S]*?#advanced-section/,
+  'human-review assessment should route to registration before LINE'
 );
 assert.match(
   html,
-  /前往官方 LINE 請鋸片醫生判讀/,
-  'direct LINE link should explain the human diagnosis action'
+  /補充資料並完成掛號/,
+  'human-review action should explain the registration step'
 );
 assert.match(
   html,
-  /if\(core\.canUnlockLine\(result\)\)revealLine/,
-  'generated inquiry summary should remain gated by successful submission'
+  /result\.ok===true&&result\.registrationNumber/,
+  'registration success should require an acknowledged backend number'
 );
 
 
@@ -49,8 +49,8 @@ scripts.forEach((script, index) => assert.doesNotThrow(
 
 assert.match(
   html,
-  /\.assessment-line-button\{width:100%;margin-top:16px\}/,
-  'assessment LINE button should be full-width and clearly separated'
+  /\.assessment-registration-button\{width:100%;margin-top:16px\}/,
+  'assessment registration button should be full-width and clearly separated'
 );
 
 assert.match(html, /data-issue="尺寸不符合／切不到"/, 'size issue choice should be available');
@@ -63,4 +63,21 @@ assert.match(
   /assessment-panel'\)\.scrollIntoView\(\{behavior:'smooth',block:'start'\}\)/,
   'quick assessment should scroll to the top of the diagnosis card'
 );
+
+for (const copy of [
+  '您已成功掛號',
+  '掛號號碼',
+  '複製掛號編號',
+  '醫生會親自為您診斷',
+  '掛號尚未完成，資料未確認寄出'
+]) {
+  assert.ok(html.includes(copy), `registration UI should include ${copy}`);
+}
+assert.doesNotMatch(html, /id="message-preview"/, 'customer page should not display full consultation text');
+assert.match(html, /id="registration-number"/, 'success card should expose the registration number');
+assert.match(html, /id="copy-registration"/, 'success card should include a registration-copy button');
+assert.match(html, /function createRequestId\(\)/, 'submission should create an idempotency key');
+assert.match(html, /event\.source!==submissionFrame\.contentWindow/, 'callback should be bound to its submission iframe');
+assert.match(html, /event\.data\.requestId!==requestId/, 'callback should match the expected request ID');
+assert.match(html, /field\.value=JSON\.stringify\(\{\.\.\.payload,requestId\}\)/, 'submission should send the request ID with the payload');
 console.log('SawDoctor UI tests passed');
