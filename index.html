@@ -289,7 +289,7 @@
 
   <script id="sawdoctor-app">
   (()=>{'use strict';
-    const APP_CONFIG={registrationUrl:'__SAWDOCTOR_REGISTRATION_URL__',lineId:'@drhawer'};
+    const APP_CONFIG={registrationUrl:'https://script.google.com/macros/s/AKfycbybkaqAC8lJ7-UZ5ECx_l4suzysJViU347y9yenxvfUx7HoCIJ1ln86gQ-V_N90qpM/exec',lineId:'@drhawer'};
     const core=globalThis.SawDoctorCore;const $=id=>document.getElementById(id),OFFICIAL_LINE_URL='https://lin.ee/8NCwShS';let quickState=null,lastRegistrationNumber='',quickRevision=0;
     const issueButtons=[...document.querySelectorAll('[data-issue]')],cutButtons=[...document.querySelectorAll('[data-cut]')];
     function selected(buttons,key){return buttons.filter(button=>button.getAttribute(key)==='true').map(button=>button.dataset.issue??button.dataset.cut)}
