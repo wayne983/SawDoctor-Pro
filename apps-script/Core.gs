@@ -47,6 +47,14 @@ var SawDoctorBackendCore = (function () {
     return {yes: '可以', no: '不可以', unknown: '不確定'}[value] || '未提供';
   }
 
+  function machineBrand_(payload) {
+    payload = payload || {};
+    var brand = text_(payload.machineBrand, '');
+    var other = text_(payload.machineBrandOther, '');
+    if (brand === '其他') return other || '其他（未填名稱）';
+    return brand || '未提供';
+  }
+
   function specification_(payload) {
     var parts = [
       payload.diameter ? '外徑 ' + payload.diameter + 'mm' : '',
@@ -74,7 +82,8 @@ var SawDoctorBackendCore = (function () {
       '切削材料：' + text_(payload.materialLabel || payload.material),
       '主要困擾：' + issues,
       '切割方向：' + text_(payload.cutDirection),
-      '機台型號：' + text_(payload.machineModel),
+      '設備品牌：' + machineBrand_(payload),
+      '設備型號：' + text_(payload.machineModel),
       '機台轉速：' + (payload.rpm ? payload.rpm + ' RPM' : '未提供'),
       '鋸片規格：' + specification_(payload),
       '目前品牌：' + text_(payload.brand),
@@ -98,6 +107,7 @@ var SawDoctorBackendCore = (function () {
     validateInquiry_: validateInquiry_,
     formatRegistrationNumber_: formatRegistrationNumber_,
     buildEmailSubject_: buildEmailSubject_,
+    machineBrand_: machineBrand_,
     buildConsultationText_: buildConsultationText_
   });
 })();
