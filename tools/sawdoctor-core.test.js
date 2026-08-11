@@ -183,4 +183,66 @@ assert.ok(
   completeBladeFitAssessment.followUpQuestions.every((item) => !item.includes('剩餘空間')),
   'completed clearance should not be asked again'
 );
+
+assert.equal(core.machineBrandLabel({machineBrand: '日意'}), '日意');
+assert.equal(
+  core.machineBrandLabel({machineBrand: '其他', machineBrandOther: '測試機械'}),
+  '測試機械'
+);
+assert.equal(
+  core.machineBrandLabel({machineBrand: '其他', machineBrandOther: ''}),
+  '其他（未填名稱）'
+);
+assert.equal(core.machineBrandLabel({machineBrand: '不確定'}), '不確定');
+assert.equal(core.machineBrandLabel({}), '未提供');
+
+const knownMachine = core.buildAssessment({
+  ...completeInput,
+  machineBrand: '冠盛',
+  machineModel: 'KS-100'
+});
+assert.ok(
+  knownMachine.followUpQuestions.every((item) => !item.includes('設備品牌')),
+  'selected equipment brand should not be requested again'
+);
+assert.ok(
+  knownMachine.followUpQuestions.every((item) => !item.includes('設備型號')),
+  'provided equipment model should not be requested again'
+);
+
+const missingMachine = core.buildAssessment({...completeInput, machineBrand: '', machineModel: ''});
+assert.ok(missingMachine.followUpQuestions.some((item) => item.includes('設備品牌')));
+assert.ok(missingMachine.followUpQuestions.some((item) => item.includes('設備型號')));
+
+const unnamedOtherMachine = core.buildAssessment({
+  ...completeInput,
+  machineBrand: '其他',
+  machineBrandOther: '',
+  machineModel: 'CUSTOM-01'
+});
+assert.ok(
+  unnamedOtherMachine.followUpQuestions.some((item) => item.includes('其他設備品牌名稱'))
+);
+assert.ok(
+  unnamedOtherMachine.followUpQuestions.every((item) => !item.includes('設備型號'))
+);
+
+const uncertainMachine = core.buildAssessment({
+  ...completeInput,
+  machineBrand: '不確定',
+  machineModel: ''
+});
+assert.ok(
+  uncertainMachine.followUpQuestions.every((item) => !item.startsWith('設備品牌'))
+);
+assert.ok(uncertainMachine.followUpQuestions.some((item) => item.includes('設備型號')));
+
+const brandMessage = core.buildLineMessage({
+  ...completeInput,
+  machineBrand: '其他',
+  machineBrandOther: '測試機械',
+  machineModel: 'CUSTOM-01'
+});
+assert.ok(brandMessage.includes('設備品牌：測試機械'));
+assert.ok(brandMessage.includes('設備型號：CUSTOM-01'));
 console.log('SawDoctorCore diagnosis tests passed');

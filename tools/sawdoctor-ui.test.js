@@ -83,4 +83,19 @@ assert.match(html, /function isTrustedRegistrationOrigin\(origin\)/, 'callback s
 assert.doesNotMatch(html, /event\.source!==submissionFrame\.contentWindow/, 'nested Apps Script callbacks should not be rejected by the outer iframe source');
 assert.match(html, /event\.data\.requestId!==requestId/, 'callback should match the expected request ID');
 assert.match(html, /field\.value=JSON\.stringify\(\{\.\.\.payload,requestId\}\)/, 'submission should send the request ID with the payload');
+for (const copy of ['日意', '冠盛', '慶祥', '其他', '不確定']) {
+  assert.ok(html.includes(`<option value="${copy}">${copy}</option>`), `brand list should include ${copy}`);
+}
+assert.match(html, /id="machine-brand" name="machineBrand"/);
+assert.match(html, /id="machine-brand-other-field"[^>]*hidden/);
+assert.match(html, /id="machine-brand-other" name="machineBrandOther"/);
+assert.match(html, /id="machine-model" name="machineModel"/);
+assert.match(html, /machineBrand:\$\('machine-brand'\)\.value/);
+assert.match(
+  html,
+  /machineBrandOther:\$\('machine-brand'\)\.value==='其他'\?\$\('machine-brand-other'\)\.value\.trim\(\):''/
+);
+assert.match(html, /function syncMachineBrandOther\(\)/);
+assert.match(html, /otherField\.hidden=!isOther/);
+assert.match(html, /if\(!isOther\)otherInput\.value=''/);
 console.log('SawDoctor UI tests passed');

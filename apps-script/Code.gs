@@ -31,7 +31,8 @@ var REGISTRATION_HEADERS = Object.freeze([
   '補充說明',
   '初步評估',
   '完整初診單',
-  '狀態'
+  '狀態',
+  '設備品牌'
 ]);
 
 function nowProvider_() {
@@ -62,6 +63,16 @@ function nextRegistrationUnlocked_(now) {
   };
 }
 
+function ensureRegistrationHeaders_(sheet) {
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(REGISTRATION_HEADERS);
+    return;
+  }
+  var brandColumn = REGISTRATION_HEADERS.length;
+  var current = String(sheet.getRange(1, brandColumn).getValue() || '').trim();
+  if (!current) sheet.getRange(1, brandColumn).setValue('設備品牌');
+}
+
 function getOrCreateSheet_() {
   var properties = PropertiesService.getScriptProperties();
   var id = properties.getProperty('SPREADSHEET_ID');
@@ -74,7 +85,7 @@ function getOrCreateSheet_() {
   }
   var sheet = spreadsheet.getSheetByName(CONFIG.sheetName);
   if (!sheet) sheet = spreadsheet.insertSheet(CONFIG.sheetName);
-  if (sheet.getLastRow() === 0) sheet.appendRow(REGISTRATION_HEADERS);
+  ensureRegistrationHeaders_(sheet);
   return sheet;
 }
 
@@ -108,13 +119,15 @@ function appendRegistration_(sheet, payload, assessment, registration, consultat
     payload.note || '',
     assessment.title || '',
     consultationText,
-    'SENDING'
+    'SENDING',
+    SawDoctorBackendCore.machineBrand_(payload)
   ]);
   return sheet.getLastRow();
 }
 
 function updateRegistrationStatus_(sheet, rowNumber, status) {
-  sheet.getRange(rowNumber, REGISTRATION_HEADERS.length).setValue(status);
+  var statusColumn = REGISTRATION_HEADERS.indexOf('狀態') + 1;
+  sheet.getRange(rowNumber, statusColumn).setValue(status);
 }
 
 function failureResult_(requestId, error) {
