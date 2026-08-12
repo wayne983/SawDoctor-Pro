@@ -2,7 +2,7 @@ import importlib.util
 import sqlite3
 import sys
 import unittest
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -115,6 +115,30 @@ class QuoteStorageTests(unittest.TestCase):
                 self.assertEqual(first.id[:-3], second.id[:-3])
                 self.assertEqual(int(second.id[-3:]), int(first.id[-3:]) + 1)
                 self.assertEqual(second.subtotal, 540)
+            finally:
+                conn.close()
+
+    def test_previewed_batch_id_and_filename_are_saved_consistently(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            try:
+                app.ensure_quote_schema(conn)
+                now = datetime(2026, 8, 13, 9, 30)
+                batch_id = app.preview_quote_batch_id(conn, now)
+                filename = app.quote_output_filename("甲", "2026-08", batch_id)
+                batch = app.save_quote_batch(
+                    conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                    quote_date=date(2026, 8, 13), output_file=filename,
+                    batch_id=batch_id, now=now,
+                )
+
+                self.assertEqual(batch.id, batch_id)
+                self.assertEqual(batch.output_file, filename)
+                self.assertIn(batch_id, filename)
+                self.assertEqual(
+                    app.preview_quote_batch_id(conn, now), "Q-260813-002"
+                )
             finally:
                 conn.close()
 

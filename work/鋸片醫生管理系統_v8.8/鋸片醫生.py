@@ -38,7 +38,13 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from quote_domain import PriceRule, QuoteLineDraft
+from quote_domain import (
+    PriceRule,
+    QuoteLineDraft,
+    apply_manual_quote,
+    build_quote_line,
+    parse_nonnegative_int,
+)
 
 # ─── 依賴檢查 ──────────────────────────────────────────────
 try:
@@ -265,14 +271,9 @@ def _quote_month_range(months):
     return ",".join(f"{int(year):04d}-{int(month):02d}" for year, month in months)
 
 
-def save_quote_batch(
-    conn, customer, months, lines, created_by, *, quote_date, output_file
-):
-    """將確認過的報價明細連同單價快照寫入一個不可覆寫的批次。"""
-    if not isinstance(output_file, str) or not output_file.strip():
-        raise ValueError("output_file 必須是非空字串")
-    output_file = output_file.strip()
-    now = datetime.now()
+def preview_quote_batch_id(conn, now=None):
+    """預覽下一個批次編號，供建立實際輸出檔名後再寫入快照。"""
+    now = now or datetime.now()
     prefix = f"Q-{now:%y%m%d}-"
     existing = conn.execute(
         "SELECT id FROM quote_batches WHERE id LIKE ? ORDER BY id DESC LIMIT 1",
@@ -281,7 +282,64 @@ def save_quote_batch(
     sequence = int(existing[0][-3:]) + 1 if existing else 1
     if sequence > 999:
         raise QuoteCollisionError("當日報價批次已超過 999 筆")
-    batch_id = f"{prefix}{sequence:03d}"
+    return f"{prefix}{sequence:03d}"
+
+
+def quote_output_filename(customer, month_range, batch_id):
+    """回傳報價批次唯一對應的客戶維修明細檔名。"""
+    return (
+        f"客戶維修明細_{_safe_quote_filename_component(customer)}_"
+        f"{_safe_quote_filename_component(month_range)}_{batch_id}.xlsx"
+    )
+
+
+def quote_line_from_blade(blade, rules):
+    """以目前生效價目建立草稿；無規則時保留為待人工填價。"""
+    od = str(blade["od"] or "")
+    rule = next(
+        (
+            candidate for candidate in rules.values()
+            if candidate.od_min <= int(od) <= candidate.od_max
+        ),
+        None,
+    ) if od.isdigit() else None
+    if rule is not None:
+        return build_quote_line(blade, rule)
+
+    def quantity(value):
+        try:
+            return parse_nonnegative_int(value)
+        except ValueError:
+            return 0
+
+    grind = str(blade["grind"])
+    teeth = str(blade["supp_teeth"])
+    fanban = str(blade["fanban"])
+    return QuoteLineDraft(
+        blade_id=parse_nonnegative_int(blade["id"]), customer=str(blade["customer"]),
+        brand_id=str(blade["brand_id"]), od=od, thickness=str(blade["thickness"]),
+        teeth=str(blade["teeth"]), spec=f"{od} x {blade['thickness']} x {blade['teeth']}T",
+        source_grind=grind, source_supp_teeth=teeth, source_fanban=fanban,
+        grinding_qty=1 if grind == "是" else 0, grinding_unit=0,
+        tooth_qty=quantity(teeth), tooth_unit=0,
+        fanban_qty=1 if fanban == "是" else 0, fanban_unit=0,
+    )
+
+
+def save_quote_batch(
+    conn, customer, months, lines, created_by, *, quote_date, output_file,
+    batch_id=None, now=None,
+):
+    """將確認過的報價明細連同單價快照寫入一個不可覆寫的批次。"""
+    if not isinstance(output_file, str) or not output_file.strip():
+        raise ValueError("output_file 必須是非空字串")
+    output_file = output_file.strip()
+    now = now or datetime.now()
+    generated_batch_id = preview_quote_batch_id(conn, now)
+    if batch_id is None:
+        batch_id = generated_batch_id
+    elif batch_id != generated_batch_id:
+        raise QuoteCollisionError("報價批次編號已變更，請重新確認後再產生")
     effective_rules = load_effective_price_rules(conn, quote_date)
     if not effective_rules:
         raise ValueError("報價日期沒有可用的價目版本")
@@ -1163,10 +1221,7 @@ def export_customer_quote_excel(output_dir, batch, lines):
     ws.page_margins.bottom = 0.5
     ws.print_options.horizontalCentered = True
 
-    filename = (
-        f"客戶維修明細_{_safe_quote_filename_component(batch.customer)}_"
-        f"{_safe_quote_filename_component(batch.month_range)}_{batch.id}.xlsx"
-    )
+    filename = quote_output_filename(batch.customer, batch.month_range, batch.id)
     output = output_dir / filename
     if output.exists():
         raise QuoteCollisionError(f"報價單號 {batch.id} 的客戶維修明細已存在，請建立新批次後重新匯出")
@@ -2280,7 +2335,7 @@ class App:
     # ── 派工清單 ─────────────────────────────────────────────
     def show_dispatch(self):
         dlg = tk.Toplevel(self.root)
-        dlg.title("派工清單設定"); dlg.geometry("460x460")
+        dlg.title("派工清單設定"); dlg.geometry("500x560")
 
         ttk.Label(dlg, text="月份範圍:", font=("Microsoft JhengHei",10,"bold")).pack(pady=(12,4))
         range_var = tk.StringVar(value="單一月份")
@@ -2323,8 +2378,14 @@ class App:
         ttk.Label(dlg, text="輸出格式:").pack(pady=(10,4))
         fmt_var = tk.StringVar(value="HTML (廠商對帳)")
         ttk.Combobox(dlg, textvariable=fmt_var,
-                     values=["HTML (廠商對帳)","Excel (.xlsx)","Word (.docx)"],
+                     values=["HTML (廠商對帳)","Excel (.xlsx)","Word (.docx)",
+                             "客戶維修報價明細 Excel"],
                      state="readonly", width=32).pack()
+
+        quote_customer_var = tk.StringVar()
+        quote_customer_box = ttk.Combobox(dlg, textvariable=quote_customer_var,
+                                          state="disabled", width=32)
+        quote_customer_label = ttk.Label(dlg, text="客戶（報價明細限定一位）:")
 
         def parse_ym(s):
             """字串 YYYY-MM 轉 (y,m),失敗回傳 None"""
@@ -2339,49 +2400,54 @@ class App:
             idx = y*12 + (m-1) + delta
             return (idx//12, idx%12 + 1)
 
-        def gen():
+        def selected_rows(show_error=False):
             ym1 = parse_ym(mon_var.get() or datetime.now().strftime("%Y-%m"))
             if not ym1:
-                messagebox.showerror("錯誤","月份 1 格式應為 YYYY-MM"); return
+                if show_error: messagebox.showerror("錯誤", "月份 1 格式應為 YYYY-MM")
+                return None, []
             y1, m1 = ym1
-
-            # 算第二個月
             mode = range_var.get()
             ym2 = None
-            if mode == "跨 2 個月 (本月 + 上個月)":
-                ym2 = shift_month(y1, m1, -1)
-            elif mode == "跨 2 個月 (本月 + 下個月)":
-                ym2 = shift_month(y1, m1, +1)
+            if mode == "跨 2 個月 (本月 + 上個月)": ym2 = shift_month(y1, m1, -1)
+            elif mode == "跨 2 個月 (本月 + 下個月)": ym2 = shift_month(y1, m1, +1)
             elif mode == "自訂兩個月":
                 ym2 = parse_ym(mon2_var.get())
-                if not ym2:
-                    messagebox.showerror("錯誤","月份 2 格式應為 YYYY-MM"); return
-                if ym2 == ym1:
-                    messagebox.showerror("錯誤","月份 1 和月份 2 不可相同"); return
-
-            # 把 (y,m) 排序,讓標題從早到晚
+                if not ym2 or ym2 == ym1:
+                    if show_error: messagebox.showerror("錯誤", "月份 2 格式應為 YYYY-MM，且不可與月份 1 相同")
+                    return None, []
             months = [ym1] if ym2 is None else sorted([ym1, ym2])
-
             with get_db() as c:
                 rows = []
                 for y, m in months:
                     rows.extend(c.execute(
-                        "SELECT * FROM blades WHERE year=? AND month=? AND status!='folder_missing' "
-                        "ORDER BY customer,receipt_date", (y,m)
-                    ).fetchall())
-
-            # 排除報廢(預設)
-            if not scrap_var.get():
-                rows = [b for b in rows if b["status"] != "scrapped"]
+                        "SELECT * FROM blades WHERE year=? AND month=? AND status!='folder_missing' ORDER BY customer,receipt_date",
+                        (y, m)).fetchall())
+            if not scrap_var.get(): rows = [b for b in rows if b["status"] != "scrapped"]
             st = st_var.get()
-            if st.startswith("未完成"):
-                rows = [b for b in rows if b["status"]=="in_progress"]
-            elif st == "研磨中":
-                rows = [b for b in rows if b["status"]=="in_progress" and not b["ok_date"]]
-            elif st == "OK回來":
-                rows = [b for b in rows if b["ok_date"] and b["status"]=="in_progress"]
-            elif st == "已出貨":
-                rows = [b for b in rows if b["status"] in ("complete","已出貨")]
+            if st.startswith("未完成"): rows = [b for b in rows if b["status"] == "in_progress"]
+            elif st == "研磨中": rows = [b for b in rows if b["status"] == "in_progress" and not b["ok_date"]]
+            elif st == "OK回來": rows = [b for b in rows if b["ok_date"] and b["status"] == "in_progress"]
+            elif st == "已出貨": rows = [b for b in rows if b["status"] in ("complete", "已出貨")]
+            return months, rows
+
+        def refresh_quote_customers(*_):
+            is_quote = fmt_var.get() == "客戶維修報價明細 Excel"
+            if not is_quote:
+                quote_customer_label.pack_forget(); quote_customer_box.pack_forget(); return
+            quote_customer_label.pack(pady=(10, 4)); quote_customer_box.pack()
+            months, rows = selected_rows()
+            customers = sorted({str(b["customer"]).strip() for b in rows
+                                if b["status"] not in ("folder_missing", "scrapped") and str(b["customer"]).strip()})
+            quote_customer_box.configure(values=customers, state="readonly")
+            if quote_customer_var.get() not in customers:
+                quote_customer_var.set(customers[0] if len(customers) == 1 else "")
+        fmt_var.trace_add("write", refresh_quote_customers)
+        for watched in (range_var, mon_var, mon2_var, st_var, scrap_var):
+            watched.trace_add("write", refresh_quote_customers)
+
+        def gen():
+            months, rows = selected_rows(show_error=True)
+            if months is None: return
 
             if not rows:
                 messagebox.showinfo("提示","符合條件的資料為 0 筆"); return
@@ -2399,6 +2465,15 @@ class App:
                 title = f"{ya}/{ma:02d} ~ {yb}/{mb:02d}月 跨月派工清單"
 
             fmt = fmt_var.get()
+            if fmt == "客戶維修報價明細 Excel":
+                customer = quote_customer_var.get().strip()
+                if not customer:
+                    messagebox.showerror("錯誤", "客戶維修報價明細必須選擇一位客戶"); return
+                quote_rows = [b for b in rows if b["customer"] == customer and b["status"] not in ("folder_missing", "scrapped")]
+                if not quote_rows:
+                    messagebox.showerror("錯誤", "所選客戶沒有可列入報價的鋸片"); return
+                self.show_quote_confirmation(quote_rows, customer, months)
+                return
             dlg.destroy()
             try:
                 if fmt.startswith("HTML"):
@@ -2420,6 +2495,150 @@ class App:
                 messagebox.showerror("失敗", f"產生失敗:\n{e}")
 
         ttk.Button(dlg, text="✅ 產生並開啟", command=gen, width=20).pack(pady=18)
+
+    def show_quote_confirmation(self, rows, customer, months):
+        """人工確認報價草稿；所有調整只存在於本次快照，不回寫鋸片資料。"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"客戶維修報價確認：{customer}")
+        dialog.geometry("1180x650")
+        dialog.transient(self.root)
+
+        quote_date = date.today()
+        with get_db() as conn:
+            rules = load_effective_price_rules(conn, quote_date)
+        base_lines = [quote_line_from_blade(row, rules) for row in rows]
+        state_rows = []
+
+        ttk.Label(dialog, text=f"客戶：{customer}　月份：{_quote_month_range(months)}　未稅",
+                  font=("Microsoft JhengHei", 12, "bold")).pack(pady=(10, 4))
+        ttk.Label(dialog, text="可調整數量、單價與備註；紅色『待人工填價』未完成前不能產生 Excel。",
+                  foreground="#a00000").pack(pady=(0, 8))
+
+        canvas = tk.Canvas(dialog, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
+        content = ttk.Frame(canvas)
+        content.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=content, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True, padx=(10, 0))
+        scrollbar.pack(side="right", fill="y", padx=(0, 10))
+
+        headers = ["列入", "編號 / 規格 / 原工序", "研磨\n數量", "研磨\n單價", "補齒\n數量", "補齒\n單價", "反板\n數量", "反板\n單價", "小計", "備註 / 狀態"]
+        for column, header in enumerate(headers):
+            ttk.Label(content, text=header, anchor="center", relief="solid", padding=4).grid(
+                row=0, column=column, sticky="nsew")
+        for column, width in enumerate((6, 35, 7, 8, 7, 8, 7, 8, 10, 25)):
+            content.columnconfigure(column, minsize=width * 7)
+
+        total_var = tk.StringVar(value="未稅總計：NT$ 0")
+        confirm_button = ttk.Button(dialog, text="產生客戶維修報價明細 Excel")
+
+        def make_line(item):
+            try:
+                return apply_manual_quote(
+                    item["base"], included=item["included"].get(),
+                    grinding_qty=item["grinding_qty"].get(), grinding_unit=item["grinding_unit"].get(),
+                    tooth_qty=item["tooth_qty"].get(), tooth_unit=item["tooth_unit"].get(),
+                    fanban_qty=item["fanban_qty"].get(), fanban_unit=item["fanban_unit"].get(),
+                    note=item["note"].get(),
+                )
+            except ValueError:
+                return None
+
+        def refresh():
+            total = 0; all_valid = False
+            any_included = False
+            for item in state_rows:
+                line = make_line(item)
+                included = item["included"].get()
+                valid = line is not None
+                if valid and included:
+                    any_included = True
+                    valid = all(
+                        quantity == 0 or unit > 0
+                        for quantity, unit in (
+                            (line.grinding_qty, line.grinding_unit),
+                            (line.tooth_qty, line.tooth_unit),
+                            (line.fanban_qty, line.fanban_unit),
+                        )
+                    )
+                    if valid: total += line.subtotal
+                item["draft"] = line
+                item["subtotal"].set(f"NT$ {line.subtotal:,}" if line and included else "—")
+                item["status"].set("可產生" if valid or not included else "待人工填價")
+                item["status_label"].configure(foreground="#006400" if valid or not included else "#b00000")
+                if included and not valid: all_valid = False
+                elif included and valid: all_valid = True if not any_included else all_valid
+            # all included rows must be valid, and at least one must remain included.
+            all_valid = any_included and all(
+                (not item["included"].get()) or (
+                    item["draft"] is not None and item["status"].get() == "可產生"
+                ) for item in state_rows
+            )
+            total_var.set(f"未稅總計：NT$ {total:,}")
+            confirm_button.configure(state="normal" if all_valid else "disabled")
+
+        for row_number, line in enumerate(base_lines, start=1):
+            item = {
+                "base": line, "included": tk.BooleanVar(value=True),
+                "grinding_qty": tk.StringVar(value=str(line.grinding_qty)),
+                "grinding_unit": tk.StringVar(value=str(line.grinding_unit)),
+                "tooth_qty": tk.StringVar(value=str(line.tooth_qty)),
+                "tooth_unit": tk.StringVar(value=str(line.tooth_unit)),
+                "fanban_qty": tk.StringVar(value=str(line.fanban_qty)),
+                "fanban_unit": tk.StringVar(value=str(line.fanban_unit)),
+                "note": tk.StringVar(value=line.note), "subtotal": tk.StringVar(), "status": tk.StringVar(),
+            }
+            ttk.Checkbutton(content, variable=item["included"], command=refresh).grid(row=row_number, column=0, sticky="nsew", padx=2, pady=2)
+            source = f"{line.brand_id}\n{line.spec}\n原：研磨 {line.source_grind}／補齒 {line.source_supp_teeth}／反板 {line.source_fanban}"
+            ttk.Label(content, text=source, justify="left", anchor="w", relief="solid", padding=3).grid(row=row_number, column=1, sticky="nsew", padx=1, pady=1)
+            for column, key in enumerate(("grinding_qty", "grinding_unit", "tooth_qty", "tooth_unit", "fanban_qty", "fanban_unit"), start=2):
+                entry = ttk.Entry(content, textvariable=item[key], width=8, justify="center")
+                entry.grid(row=row_number, column=column, sticky="nsew", padx=1, pady=1)
+                item[key].trace_add("write", lambda *_: refresh())
+            ttk.Label(content, textvariable=item["subtotal"], anchor="e", relief="solid", padding=3).grid(row=row_number, column=8, sticky="nsew", padx=1, pady=1)
+            right = ttk.Frame(content); right.grid(row=row_number, column=9, sticky="nsew", padx=1, pady=1)
+            ttk.Entry(right, textvariable=item["note"], width=22).pack(fill="x")
+            item["note"].trace_add("write", lambda *_: refresh())
+            item["status_label"] = ttk.Label(right, textvariable=item["status"])
+            item["status_label"].pack(anchor="w")
+            state_rows.append(item)
+
+        footer = ttk.Frame(dialog); footer.pack(fill="x", padx=12, pady=10)
+        ttk.Label(footer, textvariable=total_var, font=("Microsoft JhengHei", 12, "bold")).pack(side="left")
+
+        def confirm():
+            refresh()
+            included = [item["draft"] for item in state_rows if item["included"].get()]
+            if not included or any(line is None for line in included) or confirm_button.instate(["disabled"]):
+                messagebox.showerror("待人工填價", "請先完成所有列入鋸片的數量與單價。", parent=dialog); return
+            if any(line.customer != customer for line in included):
+                messagebox.showerror("資料錯誤", "報價明細不得混用不同客戶。", parent=dialog); return
+            output_dir = BASE / "客戶維修報價"
+            try:
+                with get_db() as conn:
+                    batch_id = preview_quote_batch_id(conn)
+                    month_range = _quote_month_range(months)
+                    output_file = quote_output_filename(customer, month_range, batch_id)
+                    target = output_dir / output_file
+                    if target.exists():
+                        raise QuoteCollisionError("同名 Excel 已存在，請重新確認後再產生")
+                    batch = save_quote_batch(
+                        conn, customer, months, included, "鋸片醫生",
+                        quote_date=quote_date, output_file=output_file, batch_id=batch_id,
+                    )
+                output = export_customer_quote_excel(output_dir, batch, included)
+                if os.name == "nt" and hasattr(os, "startfile"): os.startfile(str(output))
+                self.log(f"✅ 客戶維修報價明細已輸出: {output.name}")
+                dialog.destroy()
+            except ImportError as error:
+                messagebox.showerror("缺少套件", f"需要安裝 openpyxl：\n{error}", parent=dialog)
+            except Exception as error:
+                messagebox.showerror("產生失敗", str(error), parent=dialog)
+
+        confirm_button.configure(command=confirm)
+        confirm_button.pack(in_=footer, side="right")
+        refresh()
 
     # ── 設定 ─────────────────────────────────────────────────
     def show_settings(self):
