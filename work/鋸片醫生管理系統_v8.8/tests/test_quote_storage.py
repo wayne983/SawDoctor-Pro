@@ -75,12 +75,24 @@ class QuoteStorageTests(unittest.TestCase):
                 app.ensure_quote_schema(conn)
 
                 batch = app.save_quote_batch(
-                    conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲"
+                    conn,
+                    "甲",
+                    [(2026, 8)],
+                    [confirmed_305_line()],
+                    "技師甲",
+                    quote_date=date(2026, 8, 13),
+                    output_file="甲_2026-08_維修報價.xlsx",
                 )
                 conn.execute("UPDATE price_rules SET tooth_price=999 WHERE od_min=305")
                 conn.commit()
 
                 self.assertEqual(read_line(conn, batch.id)["tooth_unit"], 150)
+                self.assertEqual(
+                    conn.execute(
+                        "SELECT output_file FROM quote_batches WHERE id = ?", (batch.id,)
+                    ).fetchone()["output_file"],
+                    "甲_2026-08_維修報價.xlsx",
+                )
             finally:
                 conn.close()
 
@@ -91,12 +103,54 @@ class QuoteStorageTests(unittest.TestCase):
             try:
                 app.ensure_quote_schema(conn)
 
-                first = app.save_quote_batch(conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲")
-                second = app.save_quote_batch(conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲")
+                first = app.save_quote_batch(
+                    conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                    quote_date=date(2026, 8, 13), output_file="first.xlsx",
+                )
+                second = app.save_quote_batch(
+                    conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                    quote_date=date(2026, 8, 13), output_file="second.xlsx",
+                )
 
                 self.assertEqual(first.id[:-3], second.id[:-3])
                 self.assertEqual(int(second.id[-3:]), int(first.id[-3:]) + 1)
                 self.assertEqual(second.subtotal, 540)
+            finally:
+                conn.close()
+
+    def test_save_quote_batch_requires_effective_price_version(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            try:
+                app.ensure_quote_schema(conn)
+
+                with self.assertRaises(ValueError):
+                    app.save_quote_batch(
+                        conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                        quote_date=date(2026, 8, 12), output_file="before-effective.xlsx",
+                    )
+            finally:
+                conn.close()
+
+    def test_save_quote_batch_uses_effective_version_and_requires_output_file(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            try:
+                app.ensure_quote_schema(conn)
+
+                batch = app.save_quote_batch(
+                    conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                    quote_date=date(2026, 8, 13), output_file="confirmed.xlsx",
+                )
+
+                self.assertEqual(batch.price_version_id, "PV-20260813")
+                self.assertEqual(batch.output_file, "confirmed.xlsx")
+                with self.assertRaises(ValueError):
+                    app.save_quote_batch(
+                        conn, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                        quote_date=date(2026, 8, 13), output_file="",
+                    )
             finally:
                 conn.close()
 

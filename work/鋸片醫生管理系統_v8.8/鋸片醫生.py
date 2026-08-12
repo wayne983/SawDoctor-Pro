@@ -265,8 +265,13 @@ def _quote_month_range(months):
     return ",".join(f"{int(year):04d}-{int(month):02d}" for year, month in months)
 
 
-def save_quote_batch(conn, customer, months, lines, created_by):
+def save_quote_batch(
+    conn, customer, months, lines, created_by, *, quote_date, output_file
+):
     """將確認過的報價明細連同單價快照寫入一個不可覆寫的批次。"""
+    if not isinstance(output_file, str) or not output_file.strip():
+        raise ValueError("output_file 必須是非空字串")
+    output_file = output_file.strip()
     now = datetime.now()
     prefix = f"Q-{now:%y%m%d}-"
     existing = conn.execute(
@@ -277,12 +282,10 @@ def save_quote_batch(conn, customer, months, lines, created_by):
     if sequence > 999:
         raise QuoteCollisionError("當日報價批次已超過 999 筆")
     batch_id = f"{prefix}{sequence:03d}"
-    price_version = conn.execute(
-        "SELECT id FROM price_versions ORDER BY effective_from DESC LIMIT 1"
-    ).fetchone()
-    if price_version is None:
-        raise ValueError("建立日期沒有可用的價目版本")
-    price_version_id = price_version[0]
+    effective_rules = load_effective_price_rules(conn, quote_date)
+    if not effective_rules:
+        raise ValueError("報價日期沒有可用的價目版本")
+    price_version_id = next(iter(effective_rules.values())).version_id
     snapshot_lines = tuple(lines)
     subtotal = sum(line.subtotal for line in snapshot_lines)
     batch = QuoteBatch(
@@ -293,7 +296,7 @@ def save_quote_batch(conn, customer, months, lines, created_by):
         created_by=str(created_by),
         price_version_id=price_version_id,
         subtotal=subtotal,
-        output_file="",
+        output_file=output_file,
     )
     try:
         conn.execute(
