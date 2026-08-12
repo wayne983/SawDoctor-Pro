@@ -1052,7 +1052,7 @@ def export_dispatch_excel(rows, title):
     ws["A2"].font = Font(size=10); ws["E2"].font = Font(size=10)
     ws["A3"] = "廠商:"; ws["C3"] = ""
     ws["E3"] = "交貨日:"; ws["G3"] = ""
-    ws["I3"] = "收件人:"; 
+    ws["I3"] = "收件人:"
     for c in ("A3","E3","I3"): ws[c].font = bold
     ws["C3"].border = ws["G3"].border = Border(bottom=Side(style="thin"))
 
