@@ -64,8 +64,8 @@ class QuoteExcelTests(unittest.TestCase):
             ws = openpyxl.load_workbook(output, data_only=True)["客戶維修明細"]
             values = [[cell.value for cell in row] for row in ws.iter_rows()]
 
-            self.assertTrue(any(row[-1] == "4012" for row in values))
-            self.assertTrue(any(row[-1] == "4015" for row in values))
+            self.assertTrue(any(str(row[-1]).startswith("4012") for row in values if row[-1]))
+            self.assertTrue(any(str(row[-1]).startswith("4015") for row in values if row[-1]))
             total_row = next(row for row in values if row[0] == "未稅總計")
             self.assertEqual(total_row[6], 780)
 
@@ -106,6 +106,23 @@ class QuoteExcelTests(unittest.TestCase):
                 app.export_customer_quote_excel(output_dir, batch("甲"), [mismatched])
 
             self.assertFalse(output_dir.exists())
+
+    def test_export_keeps_manual_repair_confirmation_in_note(self):
+        with TemporaryDirectory() as directory:
+            from quote_domain import apply_manual_quote
+            handled = app.quote_line_with_manual_confirmation(
+                apply_manual_quote(line("4012", 540), note="補座與鋼面已由技師確認，另列處理"),
+                ("補座 2座", "鋼面"),
+            )
+            ws = openpyxl.load_workbook(
+                app.export_customer_quote_excel(Path(directory), batch("甲"), [handled]),
+                data_only=True,
+            ).active
+
+            self.assertTrue(any(
+                cell.value and "人工確認（補座 2座、鋼面）" in str(cell.value)
+                for row in ws.iter_rows() for cell in row
+            ))
 
 
 if __name__ == "__main__":

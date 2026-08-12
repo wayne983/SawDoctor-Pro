@@ -15,7 +15,7 @@ app = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(app)
 
-from quote_domain import QuoteLineDraft
+from quote_domain import QuoteLineDraft, apply_manual_quote
 
 
 def confirmed_305_line():
@@ -47,6 +47,29 @@ def read_line(conn, batch_id):
 
 
 class QuoteStorageTests(unittest.TestCase):
+    def test_manual_only_repairs_require_a_visible_technician_note(self):
+        blade = {
+            "id": 9, "customer": "甲", "brand_id": "M-009", "od": "305",
+            "thickness": "3.0", "teeth": "100", "grind": "是",
+            "supp_teeth": "-", "supp_seats": "2", "fanban": "-", "steel": "是",
+            "status": "in_progress", "raw_name": "305303100T(M-009)2P鋼面",
+        }
+        rules = {
+            "305": app.PriceRule("PV-test", date(2026, 8, 13), 305, 305, 240, 150, 230)
+        }
+
+        labels = app.manual_only_repair_labels(blade)
+        line = app.quote_line_from_blade(blade, rules)
+
+        self.assertEqual(labels, ("補座 2座", "鋼面"))
+        self.assertEqual(line.subtotal, 240)
+        self.assertIn("待人工確認", app.quote_line_validation_error(line, labels))
+        confirmed = app.quote_line_with_manual_confirmation(
+            apply_manual_quote(line, note="補座與鋼面已由技師確認，另列處理"), labels
+        )
+        self.assertEqual(app.quote_line_validation_error(confirmed, labels), "")
+        self.assertIn("人工確認（補座 2座、鋼面）", confirmed.note)
+
     def test_initializes_effective_price_version_and_never_replaces_it(self):
         with TemporaryDirectory() as directory:
             conn = sqlite3.connect(Path(directory) / "quote.db")

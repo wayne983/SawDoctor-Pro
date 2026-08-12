@@ -34,7 +34,7 @@ import threading
 import time
 import traceback
 import webbrowser
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -304,7 +304,12 @@ def quote_line_from_blade(blade, rules):
         None,
     ) if od.isdigit() else None
     if rule is not None:
-        return build_quote_line(blade, rule)
+        # 舊工單以「-」表示無補齒；計價草稿需要明確的 0，且不修改來源資料。
+        quote_blade = dict(blade)
+        if str(quote_blade.get("supp_teeth", "")).strip() in ("", "-"):
+            quote_blade["supp_teeth"] = "0"
+        line = build_quote_line(quote_blade, rule)
+        return replace(line, source_supp_teeth=str(blade["supp_teeth"]))
 
     def quantity(value):
         try:
@@ -324,6 +329,46 @@ def quote_line_from_blade(blade, rules):
         tooth_qty=quantity(teeth), tooth_unit=0,
         fanban_qty=1 if fanban == "是" else 0, fanban_unit=0,
     )
+
+
+def manual_only_repair_labels(blade):
+    """找出不可自動報價的來源工序，交由技師在本次報價明確處理。"""
+    labels = []
+    seats = str(blade["supp_seats"] or "").strip()
+    if seats and seats not in ("-", "0"):
+        labels.append(f"補座 {seats}座")
+    if str(blade["steel"] or "").strip() == "是":
+        labels.append("鋼面")
+    if str(blade["status"] or "").strip() == "scrapped" or bool(blade["is_scrap"] if "is_scrap" in blade.keys() else False):
+        labels.append("報廢")
+    raw_name = str(blade["raw_name"] or "") if "raw_name" in blade.keys() else ""
+    if "特殊" in raw_name:
+        labels.append("特殊")
+    return tuple(labels)
+
+
+def quote_line_validation_error(line, manual_labels=()):
+    """回傳列入報價前仍需處理的原因；不改寫來源或自動計價人工工序。"""
+    if not line.included:
+        return ""
+    if any(quantity and not unit for quantity, unit in (
+        (line.grinding_qty, line.grinding_unit),
+        (line.tooth_qty, line.tooth_unit),
+        (line.fanban_qty, line.fanban_unit),
+    )):
+        return "待人工填價"
+    if manual_labels and not line.note.strip():
+        return "待人工確認：" + "、".join(manual_labels)
+    return ""
+
+
+def quote_line_with_manual_confirmation(line, manual_labels):
+    """將技師對人工工序的處理說明明確帶入不可變的報價快照與 Excel 備註。"""
+    if manual_labels and line.note.strip():
+        return apply_manual_quote(
+            line, note=f"人工確認（{'、'.join(manual_labels)}）：{line.note.strip()}"
+        )
+    return line
 
 
 def save_quote_batch(
@@ -1169,6 +1214,9 @@ def export_customer_quote_excel(output_dir, batch, lines):
         row_number += 1
 
         for line in group_lines:
+            remark = line.brand_id
+            if line.note.strip():
+                remark += f"\n{line.note.strip()}"
             values = [
                 item_number,
                 line.spec,
@@ -1177,7 +1225,7 @@ def export_customer_quote_excel(output_dir, batch, lines):
                 "",
                 line.fanban_qty or "",
                 line.subtotal,
-                line.brand_id,
+                remark,
             ]
             for column, value in enumerate(values, start=1):
                 cell = ws.cell(row=row_number, column=column, value=value)
@@ -2506,7 +2554,10 @@ class App:
         quote_date = date.today()
         with get_db() as conn:
             rules = load_effective_price_rules(conn, quote_date)
-        base_lines = [quote_line_from_blade(row, rules) for row in rows]
+        base_lines = [
+            (quote_line_from_blade(row, rules), manual_only_repair_labels(row))
+            for row in rows
+        ]
         state_rows = []
 
         ttk.Label(dialog, text=f"客戶：{customer}　月份：{_quote_month_range(months)}　未稅",
@@ -2535,13 +2586,14 @@ class App:
 
         def make_line(item):
             try:
-                return apply_manual_quote(
+                line = apply_manual_quote(
                     item["base"], included=item["included"].get(),
                     grinding_qty=item["grinding_qty"].get(), grinding_unit=item["grinding_unit"].get(),
                     tooth_qty=item["tooth_qty"].get(), tooth_unit=item["tooth_unit"].get(),
                     fanban_qty=item["fanban_qty"].get(), fanban_unit=item["fanban_unit"].get(),
                     note=item["note"].get(),
                 )
+                return quote_line_with_manual_confirmation(line, item["manual_labels"])
             except ValueError:
                 return None
 
@@ -2551,21 +2603,16 @@ class App:
             for item in state_rows:
                 line = make_line(item)
                 included = item["included"].get()
-                valid = line is not None
-                if valid and included:
+                validation_error = "待人工填價" if line is None else quote_line_validation_error(
+                    line, item["manual_labels"]
+                )
+                valid = not validation_error
+                if line is not None and included and valid:
                     any_included = True
-                    valid = all(
-                        quantity == 0 or unit > 0
-                        for quantity, unit in (
-                            (line.grinding_qty, line.grinding_unit),
-                            (line.tooth_qty, line.tooth_unit),
-                            (line.fanban_qty, line.fanban_unit),
-                        )
-                    )
-                    if valid: total += line.subtotal
+                    total += line.subtotal
                 item["draft"] = line
                 item["subtotal"].set(f"NT$ {line.subtotal:,}" if line and included else "—")
-                item["status"].set("可產生" if valid or not included else "待人工填價")
+                item["status"].set("可產生" if valid or not included else validation_error)
                 item["status_label"].configure(foreground="#006400" if valid or not included else "#b00000")
                 if included and not valid: all_valid = False
                 elif included and valid: all_valid = True if not any_included else all_valid
@@ -2578,7 +2625,7 @@ class App:
             total_var.set(f"未稅總計：NT$ {total:,}")
             confirm_button.configure(state="normal" if all_valid else "disabled")
 
-        for row_number, line in enumerate(base_lines, start=1):
+        for row_number, (line, manual_labels) in enumerate(base_lines, start=1):
             item = {
                 "base": line, "included": tk.BooleanVar(value=True),
                 "grinding_qty": tk.StringVar(value=str(line.grinding_qty)),
@@ -2588,9 +2635,12 @@ class App:
                 "fanban_qty": tk.StringVar(value=str(line.fanban_qty)),
                 "fanban_unit": tk.StringVar(value=str(line.fanban_unit)),
                 "note": tk.StringVar(value=line.note), "subtotal": tk.StringVar(), "status": tk.StringVar(),
+                "manual_labels": manual_labels,
             }
             ttk.Checkbutton(content, variable=item["included"], command=refresh).grid(row=row_number, column=0, sticky="nsew", padx=2, pady=2)
             source = f"{line.brand_id}\n{line.spec}\n原：研磨 {line.source_grind}／補齒 {line.source_supp_teeth}／反板 {line.source_fanban}"
+            if manual_labels:
+                source += "\n待人工確認：" + "、".join(manual_labels)
             ttk.Label(content, text=source, justify="left", anchor="w", relief="solid", padding=3).grid(row=row_number, column=1, sticky="nsew", padx=1, pady=1)
             for column, key in enumerate(("grinding_qty", "grinding_unit", "tooth_qty", "tooth_unit", "fanban_qty", "fanban_unit"), start=2):
                 entry = ttk.Entry(content, textvariable=item[key], width=8, justify="center")
