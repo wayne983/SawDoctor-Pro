@@ -34,8 +34,11 @@ import threading
 import time
 import traceback
 import webbrowser
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from pathlib import Path
+
+from quote_domain import PriceRule, QuoteLineDraft
 
 # ─── 依賴檢查 ──────────────────────────────────────────────
 try:
@@ -156,8 +159,172 @@ def get_db():
         status TEXT DEFAULT 'in_progress',
         created_at TEXT, updated_at TEXT
     )""")
+    ensure_quote_schema(conn)
     conn.commit()
     return conn
+
+
+class QuoteCollisionError(RuntimeError):
+    """報價批次編號衝突，避免覆蓋既有快照。"""
+
+
+@dataclass(frozen=True)
+class QuoteBatch:
+    id: str
+    customer: str
+    month_range: str
+    created_at: str
+    created_by: str
+    price_version_id: str
+    subtotal: int
+    output_file: str
+
+
+_INITIAL_PRICE_VERSION_ID = "PV-20260813"
+_INITIAL_PRICE_EFFECTIVE_FROM = "2026-08-13"
+_INITIAL_PRICE_RULES = (
+    (305, 305, 240, 150, 230),
+    (355, 355, 280, 150, 230),
+    (405, 455, 350, 150, 250),
+)
+
+
+def ensure_quote_schema(conn):
+    """建立報價資料表並在空白資料庫寫入初始價目版本。"""
+    conn.execute("""CREATE TABLE IF NOT EXISTS price_versions(
+        id TEXT PRIMARY KEY, effective_from TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS price_rules(
+        version_id TEXT NOT NULL, od_min INTEGER NOT NULL, od_max INTEGER NOT NULL,
+        grinding_price INTEGER NOT NULL, tooth_price INTEGER NOT NULL, fanban_price INTEGER NOT NULL,
+        PRIMARY KEY(version_id, od_min, od_max)
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS quote_batches(
+        id TEXT PRIMARY KEY, customer TEXT NOT NULL, month_range TEXT NOT NULL,
+        created_at TEXT NOT NULL, created_by TEXT NOT NULL, price_version_id TEXT NOT NULL,
+        subtotal INTEGER NOT NULL, output_file TEXT NOT NULL
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS quote_lines(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT NOT NULL, blade_id INTEGER NOT NULL,
+        display_order INTEGER NOT NULL, spec TEXT NOT NULL, brand_id TEXT NOT NULL,
+        source_grind TEXT NOT NULL, source_supp_teeth TEXT NOT NULL, source_fanban TEXT NOT NULL,
+        grinding_qty INTEGER NOT NULL, grinding_unit INTEGER NOT NULL,
+        tooth_qty INTEGER NOT NULL, tooth_unit INTEGER NOT NULL,
+        fanban_qty INTEGER NOT NULL, fanban_unit INTEGER NOT NULL,
+        subtotal INTEGER NOT NULL, note TEXT NOT NULL
+    )""")
+    created_at = datetime.now().isoformat(timespec="seconds")
+    conn.execute(
+        "INSERT OR IGNORE INTO price_versions(id, effective_from, created_at) VALUES (?, ?, ?)",
+        (_INITIAL_PRICE_VERSION_ID, _INITIAL_PRICE_EFFECTIVE_FROM, created_at),
+    )
+    for rule in _INITIAL_PRICE_RULES:
+        conn.execute(
+            """INSERT OR IGNORE INTO price_rules(
+                version_id, od_min, od_max, grinding_price, tooth_price, fanban_price
+            ) VALUES (?, ?, ?, ?, ?, ?)""",
+            (_INITIAL_PRICE_VERSION_ID, *rule),
+        )
+    conn.commit()
+
+
+def load_effective_price_rules(conn, on_date):
+    """依生效日讀取一個價目版本，並保留資料庫中的既有價格。"""
+    if isinstance(on_date, datetime):
+        on_date = on_date.date()
+    if not isinstance(on_date, date):
+        raise TypeError("on_date 必須是 date")
+    version = conn.execute(
+        """SELECT id, effective_from FROM price_versions
+           WHERE effective_from <= ? ORDER BY effective_from DESC LIMIT 1""",
+        (on_date.isoformat(),),
+    ).fetchone()
+    if version is None:
+        return {}
+    rules = conn.execute(
+        """SELECT od_min, od_max, grinding_price, tooth_price, fanban_price
+           FROM price_rules WHERE version_id = ? ORDER BY od_min""",
+        (version[0],),
+    ).fetchall()
+    effective_from = date.fromisoformat(version[1])
+    return {
+        str(row[0]): PriceRule(
+            version_id=version[0],
+            effective_from=effective_from,
+            od_min=row[0],
+            od_max=row[1],
+            grinding_price=row[2],
+            tooth_price=row[3],
+            fanban_price=row[4],
+        )
+        for row in rules
+    }
+
+
+def _quote_month_range(months):
+    return ",".join(f"{int(year):04d}-{int(month):02d}" for year, month in months)
+
+
+def save_quote_batch(conn, customer, months, lines, created_by):
+    """將確認過的報價明細連同單價快照寫入一個不可覆寫的批次。"""
+    now = datetime.now()
+    prefix = f"Q-{now:%y%m%d}-"
+    existing = conn.execute(
+        "SELECT id FROM quote_batches WHERE id LIKE ? ORDER BY id DESC LIMIT 1",
+        (prefix + "%",),
+    ).fetchone()
+    sequence = int(existing[0][-3:]) + 1 if existing else 1
+    if sequence > 999:
+        raise QuoteCollisionError("當日報價批次已超過 999 筆")
+    batch_id = f"{prefix}{sequence:03d}"
+    price_version = conn.execute(
+        "SELECT id FROM price_versions ORDER BY effective_from DESC LIMIT 1"
+    ).fetchone()
+    if price_version is None:
+        raise ValueError("建立日期沒有可用的價目版本")
+    price_version_id = price_version[0]
+    snapshot_lines = tuple(lines)
+    subtotal = sum(line.subtotal for line in snapshot_lines)
+    batch = QuoteBatch(
+        id=batch_id,
+        customer=str(customer),
+        month_range=_quote_month_range(months),
+        created_at=now.isoformat(timespec="seconds"),
+        created_by=str(created_by),
+        price_version_id=price_version_id,
+        subtotal=subtotal,
+        output_file="",
+    )
+    try:
+        conn.execute(
+            """INSERT INTO quote_batches(
+                id, customer, month_range, created_at, created_by, price_version_id, subtotal, output_file
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                batch.id, batch.customer, batch.month_range, batch.created_at,
+                batch.created_by, batch.price_version_id, batch.subtotal, batch.output_file,
+            ),
+        )
+        for display_order, line in enumerate(snapshot_lines, start=1):
+            conn.execute(
+                """INSERT INTO quote_lines(
+                    batch_id, blade_id, display_order, spec, brand_id,
+                    source_grind, source_supp_teeth, source_fanban,
+                    grinding_qty, grinding_unit, tooth_qty, tooth_unit,
+                    fanban_qty, fanban_unit, subtotal, note
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    batch.id, line.blade_id, display_order, line.spec, line.brand_id,
+                    line.source_grind, line.source_supp_teeth, line.source_fanban,
+                    line.grinding_qty, line.grinding_unit, line.tooth_qty, line.tooth_unit,
+                    line.fanban_qty, line.fanban_unit, line.subtotal, line.note,
+                ),
+            )
+        conn.commit()
+    except sqlite3.IntegrityError as error:
+        conn.rollback()
+        raise QuoteCollisionError(f"報價批次 {batch_id} 已存在") from error
+    return batch
 
 def spec_str(b):
     od = b["od"] or ""; thk = b["thickness"] or ""; te = b["teeth"] or ""
