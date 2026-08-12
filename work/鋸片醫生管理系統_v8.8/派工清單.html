@@ -1,0 +1,351 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
+<title>2026/08月 派工清單</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:"Microsoft JhengHei","PMingLiU",sans-serif;padding:10px 14px;color:#111;margin:0;background:#f4f6fa}
+.page{max-width:210mm;margin:0 auto;background:white;padding:10mm 8mm;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px double #333;padding-bottom:6px;margin-bottom:8px}
+.head h1{margin:0;font-size:22px;letter-spacing:2px}
+.head .sub{font-size:13px;color:#555}
+.meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:10px 0;font-size:14px}
+.meta .box{border:1px solid #999;padding:6px 10px;background:#fafafa}
+.meta .box b{color:#333;margin-right:4px}
+.stats{display:flex;gap:8px;font-size:15px;margin:8px 0 10px;flex-wrap:wrap}
+.stats .pill{padding:4px 12px;border-radius:12px;font-weight:bold}
+.stats .total{background:#1a3a5c;color:white}
+.stats .done{background:#d4edda;color:#155724;border:1px solid #8fd19e}
+.stats .pending{background:#fff3cd;color:#856404;border:1px solid #ffd56b}
+table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
+col.c-chk{width:38px} col.c-num{width:32px}
+col.c-cust{width:74px} col.c-bid{width:100px}
+col.c-spec{width:110px} col.c-ops{width:auto}
+col.c-date{width:90px} col.c-note{width:64px}
+th,td{border:1px solid #555;padding:6px 6px;vertical-align:middle;overflow:hidden}
+th{background:#e8eef7;font-weight:bold;text-align:center;font-size:13px;padding:8px 4px}
+td.chk{text-align:center;font-size:26px;line-height:1;padding:4px;cursor:pointer;user-select:none}
+td.chk:hover{background:#fffbd8}
+td.num{text-align:center;color:#888;font-size:13px}
+td.date{font-size:13px;text-align:center;white-space:nowrap;line-height:1.3}
+td.date small{color:#c00;font-size:12px}
+td.cust{font-weight:bold;text-align:center;font-size:15px}
+td.bid{font-family:monospace;font-size:13px;text-align:center;word-break:break-all;line-height:1.3}
+td.spec{text-align:center;font-size:13px;font-weight:bold}
+td.ops{padding:4px}
+td.note{background:#fffef0}
+.cnt-badge{display:inline-block;background:#dc2626;color:white;border-radius:10px;padding:1px 7px;font-size:12px;font-weight:bold;margin-left:4px;vertical-align:middle}
+.tag{display:inline-block;padding:2px 7px;margin:2px;font-size:13px;border-radius:4px;color:white;white-space:nowrap;font-weight:bold}
+.tag.grind{background:#6b7280}
+.tag.teeth{background:#ef4444}
+.tag.seats{background:#f59e0b}
+.tag.fan{background:#8b5cf6}
+.tag.steel{background:#0ea5e9}
+tr.done{background:#f0f0f0;color:#888}
+tr.done td.chk{color:#080}
+tr.done td.ops .tag{opacity:.55}
+tr:nth-child(even):not(.done){background:#fcfcfc}
+.sign{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px}
+.sign .slot{border:1px solid #666;padding:10px 14px;min-height:80px;position:relative}
+.sign .slot b{display:block;margin-bottom:36px;color:#333;font-size:14px}
+.sign .slot small{position:absolute;bottom:6px;right:10px;color:#999;font-size:11px}
+.notes{margin-top:10px;border:1px solid #999;padding:8px 10px;font-size:13px;min-height:50px;background:#fffef0}
+.notes b{display:block;margin-bottom:4px}
+.bar{margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;background:#f4f6fa;padding:8px 0;z-index:10;border-bottom:1px solid #ddd}
+.bar button{padding:8px 14px;font-size:13px;border:none;border-radius:4px;cursor:pointer;color:white;background:#1a3a5c}
+.bar button:hover{filter:brightness(1.15)}
+.bar .hint{font-size:11px;color:#666;align-self:center;line-height:1.3}
+.bar .green{background:#10b981}
+.bar .orange{background:#f97316}
+.bar .gray{background:#6b7280}
+.bar .red{background:#dc2626}
+.info-box{background:#eff6ff;border:1px solid #bfdbfe;padding:8px 12px;margin-bottom:10px;border-radius:6px;font-size:12px;color:#1e40af}
+.info-box b{color:#1e3a8a}
+@media print{
+  .bar,.info-box{display:none}
+  body{padding:0;background:white}
+  .page{box-shadow:none;padding:6mm 6mm;max-width:none}
+  @page{size:A4 portrait;margin:8mm}
+  tr.done{background:#e5e5e5 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style></head><body>
+
+<div class="bar" id="topbar">
+  <button onclick="window.print()">🖨 列印紙本</button>
+  <button class="green" onclick="checkAll(true)">✅ 全部勾選</button>
+  <button class="gray" onclick="checkAll(false)">☐ 全部取消</button>
+  <button class="orange" onclick="downloadReport()">📤 下載對帳回傳檔</button>
+  <button class="red" onclick="resetAll()">🔄 重置</button>
+  <span class="hint">
+    <b>電腦勾選:</b>點擊勾選格即可切換 ☑/☐<br>
+    <b>回傳:</b>勾完 → 下載對帳回傳檔 → 用 LINE/Email 傳回鋸片醫生
+  </span>
+</div>
+
+<div class="page">
+
+<div class="info-box">
+  <b>📋 對帳單使用說明：</b>
+  1. 廠商用電腦 / 平板開啟此檔，點擊「勾選」欄打勾 ☑<br>
+  2. 勾選完畢按「📤 下載對帳回傳檔」會產生一個 .json 檔<br>
+  3. 用 LINE / Email 把該 .json 檔傳回鋸片醫生<br>
+  4. 若無法使用電子版，按「🖨 列印紙本」印出用原子筆打勾即可
+</div>
+
+<div class="head">
+  <div>
+    <h1>🪚 鋸片醫生 — 2026/08月 派工清單</h1>
+    <div class="sub">HAWER SAWDOCTOR · 廠商對帳清單 (直式 A4)</div>
+  </div>
+  <div style="text-align:right;font-size:11px">
+    列印日期:2026-08-12<br>
+    單號:<b>D-2608121316</b>
+  </div>
+</div>
+
+<div class="meta">
+  <div class="box"><b>廠商：</b>______________________</div>
+  <div class="box"><b>交貨日：</b>____________________</div>
+  <div class="box"><b>收件人：</b>____________________</div>
+</div>
+
+<div class="stats">
+  <span class="pill total">總件數 <span id="st-total">15</span></span>
+  <span class="pill done">已完成 <span id="st-done">0</span></span>
+  <span class="pill pending">未完成 <span id="st-pend">15</span></span>
+  <span style="color:#888;align-self:center;font-size:11px">☑ = 已交回　☐ = 待交回</span>
+</div>
+
+<table>
+<colgroup>
+<col class="c-chk"><col class="c-num"><col class="c-cust"><col class="c-bid">
+<col class="c-spec"><col class="c-ops"><col class="c-date"><col class="c-note">
+</colgroup>
+<thead><tr>
+<th>勾選</th><th>#</th><th>客戶</th><th>編號</th>
+<th>規格</th><th>維修工序</th><th>進貨日 / 交期</th><th>備註</th>
+</tr></thead><tbody id="tb"><tr data-idx="1" class="">
+          <td class="chk">☐</td>
+          <td class="num">1</td>
+          <td class="cust">建通<span class="cnt-badge">×3</span></td>
+          <td class="bid">0011 / 4002 / 4017</td>
+          <td class="spec">305 / 3.0T / 100T</td>
+          <td class="ops"><span class="tag grind">研</span><span class="tag teeth">補1齒</span></td>
+          <td class="date">2026-08-10<br><small>→ 2026-08-26</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="2" class="">
+          <td class="chk">☐</td>
+          <td class="num">2</td>
+          <td class="cust">建通<span class="cnt-badge">×2</span></td>
+          <td class="bid">0012 / 0018</td>
+          <td class="spec">305 / 3.0T / 100T</td>
+          <td class="ops"><span class="tag grind">研</span><span class="tag teeth">補2齒</span></td>
+          <td class="date">2026-08-10<br><small>→ 2026-08-26</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="3" class="">
+          <td class="chk">☐</td>
+          <td class="num">3</td>
+          <td class="cust">建通<span class="cnt-badge">×17</span></td>
+          <td class="bid">0017 / 4001 / 4003 / 4005 / 4007 / 4008 / 4009 / 4010 / 4012 / 4013 / 4014 / 4019 / 4020 / 4021 / PILIHO0016 / 4006 / 4018</td>
+          <td class="spec">305 / 3.0T / 100T</td>
+          <td class="ops"><span class="tag grind">研</span></td>
+          <td class="date">2026-08-10<br><small>→ 2026-08-28</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="4" class="">
+          <td class="chk">☐</td>
+          <td class="num">4</td>
+          <td class="cust">建通</td>
+          <td class="bid">2007</td>
+          <td class="spec">355 / 3.2T / 80T</td>
+          <td class="ops"><span class="tag grind">研</span><span class="tag teeth">補15齒</span></td>
+          <td class="date">2026-08-10<br><small>→ 2026-08-26</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="5" class="">
+          <td class="chk">☐</td>
+          <td class="num">5</td>
+          <td class="cust">建通<span class="cnt-badge">×4</span></td>
+          <td class="bid">02 / 06 / 07 / 08</td>
+          <td class="spec">355 / 1.8T / 80T</td>
+          <td class="ops"><span class="tag grind">研</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="6" class="">
+          <td class="chk">☐</td>
+          <td class="num">6</td>
+          <td class="cust">建通</td>
+          <td class="bid">03</td>
+          <td class="spec">355 / 1.8T / 80T</td>
+          <td class="ops"><span class="tag grind">研</span><span class="tag teeth">補1齒</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="7" class="">
+          <td class="chk">☐</td>
+          <td class="num">7</td>
+          <td class="cust">建通</td>
+          <td class="bid">PILIHO0026</td>
+          <td class="spec">355 / 2.0T / 80T</td>
+          <td class="ops"><span class="tag grind">研</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="8" class="">
+          <td class="chk">☐</td>
+          <td class="num">8</td>
+          <td class="cust">建通<span class="cnt-badge">×2</span></td>
+          <td class="bid">2009 / 2022</td>
+          <td class="spec">355 / 3.2T / 80T</td>
+          <td class="ops"><span class="tag grind">研</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="9" class="">
+          <td class="chk">☐</td>
+          <td class="num">9</td>
+          <td class="cust">建通<span class="cnt-badge">×2</span></td>
+          <td class="bid">6009 / 9017</td>
+          <td class="spec">405 / 3.2T / 100T</td>
+          <td class="ops"><span class="tag grind">研</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="10" class="">
+          <td class="chk">☐</td>
+          <td class="num">10</td>
+          <td class="cust">建通<span class="cnt-badge">×2</span></td>
+          <td class="bid">6010 / 9019</td>
+          <td class="spec">405 / 3.2T / 100T</td>
+          <td class="ops"><span class="tag grind">研</span><span class="tag teeth">補3齒</span><span class="tag fan">反板</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="11" class="">
+          <td class="chk">☐</td>
+          <td class="num">11</td>
+          <td class="cust">建通<span class="cnt-badge">×2</span></td>
+          <td class="bid">6011 / 9004</td>
+          <td class="spec">405 / 3.2T / 100T</td>
+          <td class="ops"><span class="tag grind">研</span><span class="tag teeth">補1齒</span><span class="tag fan">反板</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="12" class="">
+          <td class="chk">☐</td>
+          <td class="num">12</td>
+          <td class="cust">建通</td>
+          <td class="bid">6019</td>
+          <td class="spec">405 / 3.2T / 100T</td>
+          <td class="ops"><span class="tag grind">研</span><span class="tag fan">反板</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="13" class="">
+          <td class="chk">☐</td>
+          <td class="num">13</td>
+          <td class="cust">建通</td>
+          <td class="bid">NGO03</td>
+          <td class="spec">455 / 3.2T / 80T</td>
+          <td class="ops"><span class="tag grind">研</span><span class="tag teeth">補10齒</span><span class="tag fan">反板</span></td>
+          <td class="date">2026-08-11<br><small>→ 2026-08-27</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="14" class="">
+          <td class="chk">☐</td>
+          <td class="num">14</td>
+          <td class="cust">衛全<span class="cnt-badge">×2</span></td>
+          <td class="bid">7017 / 7049</td>
+          <td class="spec">195 / 2.0T / 80T</td>
+          <td class="ops"><span class="tag grind">研</span></td>
+          <td class="date">2026-08-12<br><small>→ 2026-08-28</small></td>
+          <td class="note"></td>
+        </tr><tr data-idx="15" class="">
+          <td class="chk">☐</td>
+          <td class="num">15</td>
+          <td class="cust">衛全</td>
+          <td class="bid">6325</td>
+          <td class="spec">305 / 3.0T / 120T</td>
+          <td class="ops"><span class="tag grind">研</span></td>
+          <td class="date">2026-08-12<br><small>→ 2026-08-28</small></td>
+          <td class="note"></td>
+        </tr></tbody></table>
+
+<div class="sign">
+  <div class="slot"><b>廠商簽收</b><small>簽名 / 蓋章 / 日期</small></div>
+  <div class="slot"><b>鋸片醫生覆核</b><small>簽名 / 日期</small></div>
+</div>
+
+<div class="notes"><b>備註 / 異常說明:</b></div>
+
+</div>
+
+<script>
+  const DATA = [{"idx": 1, "count": 3, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(0011)1T 微變形", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4002)1T", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4017)1T 齒損幾乎在左邊"], "customer": "建通", "brand_ids": ["0011", "4002", "4017"], "brand_display": "0011 / 4002 / 4017", "spec": "305 / 3.0T / 100T", "grind": "✓", "supp_teeth": "1", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-10", "late_deadline": "2026-08-26", "already_done": false, "checked": false}, {"idx": 2, "count": 2, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(0012)2T", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(0018)2T"], "customer": "建通", "brand_ids": ["0012", "0018"], "brand_display": "0012 / 0018", "spec": "305 / 3.0T / 100T", "grind": "✓", "supp_teeth": "2", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-10", "late_deadline": "2026-08-26", "already_done": false, "checked": false}, {"idx": 3, "count": 17, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(0017)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4001)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4003)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4005)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4007)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4008)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4009)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4010)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4012)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4013)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4014)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4019)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4020)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4021)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(PILIHO0016) ※", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4006)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\30530100T(4018)"], "customer": "建通", "brand_ids": ["0017", "4001", "4003", "4005", "4007", "4008", "4009", "4010", "4012", "4013", "4014", "4019", "4020", "4021", "PILIHO0016", "4006", "4018"], "brand_display": "0017 / 4001 / 4003 / 4005 / 4007 / 4008 / 4009 / 4010 / 4012 / 4013 / 4014 / 4019 / 4020 / 4021 / PILIHO0016 / 4006 / 4018", "spec": "305 / 3.0T / 100T", "grind": "✓", "supp_teeth": "—", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-10", "late_deadline": "2026-08-28", "already_done": false, "checked": false}, {"idx": 4, "count": 1, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3553280T(2007) 15T (X)"], "customer": "建通", "brand_ids": ["2007"], "brand_display": "2007", "spec": "355 / 3.2T / 80T", "grind": "✓", "supp_teeth": "15", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-10", "late_deadline": "2026-08-26", "already_done": false, "checked": false}, {"idx": 5, "count": 4, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3551880T(02) ※ 左右倒角交替", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3551880T(06) ※ 左右倒角交替", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3551880T(07) ※ 左右倒角交替", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3551880T(08) ※ 左右倒角交替"], "customer": "建通", "brand_ids": ["02", "06", "07", "08"], "brand_display": "02 / 06 / 07 / 08", "spec": "355 / 1.8T / 80T", "grind": "✓", "supp_teeth": "—", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 6, "count": 1, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3551880T(03)1T內孔燒焦 ※ 左右倒角交替"], "customer": "建通", "brand_ids": ["03"], "brand_display": "03", "spec": "355 / 1.8T / 80T", "grind": "✓", "supp_teeth": "1", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 7, "count": 1, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3552080T(PILIHO0026)"], "customer": "建通", "brand_ids": ["PILIHO0026"], "brand_display": "PILIHO0026", "spec": "355 / 2.0T / 80T", "grind": "✓", "supp_teeth": "—", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 8, "count": 2, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3553280T(2009)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\3553280T(2022)"], "customer": "建通", "brand_ids": ["2009", "2022"], "brand_display": "2009 / 2022", "spec": "355 / 3.2T / 80T", "grind": "✓", "supp_teeth": "—", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 9, "count": 2, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\40532100T(6009)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\40532100T(9017)"], "customer": "建通", "brand_ids": ["6009", "9017"], "brand_display": "6009 / 9017", "spec": "405 / 3.2T / 100T", "grind": "✓", "supp_teeth": "—", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 10, "count": 2, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\40532100T(6010) 3T 反板 經典斷齒", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\40532100T(9019)3T反板"], "customer": "建通", "brand_ids": ["6010", "9019"], "brand_display": "6010 / 9019", "spec": "405 / 3.2T / 100T", "grind": "✓", "supp_teeth": "3", "supp_seats": "—", "fanban": "✓", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 11, "count": 2, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\40532100T(6011)1T反板", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\40532100T(9004)1T反板偏心"], "customer": "建通", "brand_ids": ["6011", "9004"], "brand_display": "6011 / 9004", "spec": "405 / 3.2T / 100T", "grind": "✓", "supp_teeth": "1", "supp_seats": "—", "fanban": "✓", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 12, "count": 1, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\40532100T(6019)反板"], "customer": "建通", "brand_ids": ["6019"], "brand_display": "6019", "spec": "405 / 3.2T / 100T", "grind": "✓", "supp_teeth": "—", "supp_seats": "—", "fanban": "✓", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 13, "count": 1, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\建通\\4553280T(NGO03)10T反板"], "customer": "建通", "brand_ids": ["NGO03"], "brand_display": "NGO03", "spec": "455 / 3.2T / 80T", "grind": "✓", "supp_teeth": "10", "supp_seats": "—", "fanban": "✓", "steel": "—", "receipt_date": "2026-08-11", "late_deadline": "2026-08-27", "already_done": false, "checked": false}, {"idx": 14, "count": 2, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\衛全\\1952080T(7017)", "\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\衛全\\1952080T(7049)"], "customer": "衛全", "brand_ids": ["7017", "7049"], "brand_display": "7017 / 7049", "spec": "195 / 2.0T / 80T", "grind": "✓", "supp_teeth": "—", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-12", "late_deadline": "2026-08-28", "already_done": false, "checked": false}, {"idx": 15, "count": 1, "folder_paths": ["\\\\Ds418\\鋸片醫生專用\\公司電腦共用檔\\0001顯微鏡檢查檔\\檢查檔\\2026\\8月\\衛全\\30530120T(6325)"], "customer": "衛全", "brand_ids": ["6325"], "brand_display": "6325", "spec": "305 / 3.0T / 120T", "grind": "✓", "supp_teeth": "—", "supp_seats": "—", "fanban": "—", "steel": "—", "receipt_date": "2026-08-12", "late_deadline": "2026-08-28", "already_done": false, "checked": false}];
+  const SERIAL = "D-2608121316";
+  const TITLE = "2026/08月 派工清單";
+
+  function render() {
+    const tb = document.getElementById('tb');
+    let done = 0;
+    DATA.forEach(x => {
+      const tr = tb.querySelector(`tr[data-idx="${x.idx}"]`);
+      if (!tr) return;
+      const chk = tr.querySelector('.chk');
+      chk.textContent = x.checked ? '☑' : '☐';
+      tr.classList.toggle('done', !!x.checked);
+      if (x.checked) done++;
+    });
+    document.getElementById('st-done').textContent = done;
+    document.getElementById('st-pend').textContent = DATA.length - done;
+  }
+
+  // 點勾選欄或整列切換
+  document.querySelectorAll('#tb tr').forEach(tr => {
+    const idx = parseInt(tr.dataset.idx);
+    const chk = tr.querySelector('.chk');
+    if (chk) {
+      chk.addEventListener('click', e => {
+        e.stopPropagation();
+        const item = DATA.find(x => x.idx === idx);
+        if (item) { item.checked = !item.checked; render(); }
+      });
+    }
+  });
+
+  function checkAll(val) {
+    DATA.forEach(x => x.checked = val);
+    render();
+  }
+
+  function resetAll() {
+    if (!confirm('確定要重置成初始狀態?')) return;
+    DATA.forEach(x => x.checked = x.already_done);
+    render();
+  }
+
+  function downloadReport() {
+    const vendor = prompt('請輸入廠商名稱 (如:研磨廠A):', '') || '未填';
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+    const report = {
+      type: "sawdoctor_dispatch_report",
+      version: "1.0",
+      serial: SERIAL,
+      title: TITLE,
+      vendor: vendor,
+      reported_at: now.toISOString(),
+      total: DATA.length,
+      done: DATA.filter(x=>x.checked).length,
+      items: DATA.map(x => ({
+        idx: x.idx,
+        count: x.count,
+        folder_paths: x.folder_paths,
+        customer: x.customer,
+        brand_ids: x.brand_ids,
+        brand_display: x.brand_display,
+        spec: x.spec,
+        checked: x.checked,
+      }))
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `對帳回傳_${vendor}_${stamp}.json`;
+    a.click();
+    alert(`已下載對帳回傳檔：\n${a.download}\n\n請用 LINE 或 Email 傳回鋸片醫生！`);
+  }
+
+  render();
+</script>
+</body></html>
