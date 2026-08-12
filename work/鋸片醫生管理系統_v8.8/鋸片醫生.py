@@ -1019,6 +1019,157 @@ def export_dispatch_excel(rows, title):
     return out
 
 
+def _safe_quote_filename_component(value):
+    """將客戶資料轉為可安全使用於 Windows 檔名的片段。"""
+    unsafe = '<>:"/\\|?*'
+    cleaned = "".join("-" if char in unsafe else char for char in str(value).strip())
+    return cleaned or "未命名客戶"
+
+
+def export_customer_quote_excel(output_dir, batch, lines):
+    """匯出客戶維修明細；每支鋸片維持一列，不合併報價金額。"""
+    from itertools import groupby
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    ordered_lines = sorted(lines, key=lambda line: (line.spec, line.brand_id, line.blade_id))
+    generated_on = datetime.now()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "客戶維修明細"
+    thin = Side(style="thin", color="666666")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    title_font = Font(bold=True, size=18, name="微軟正黑體")
+    bold_font = Font(bold=True, size=11, name="微軟正黑體")
+    body_font = Font(size=11, name="微軟正黑體")
+    header_font = Font(bold=True, size=11, name="微軟正黑體", color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="1A3A5C")
+    group_fill = PatternFill("solid", fgColor="D9EAF7")
+    unit_fill = PatternFill("solid", fgColor="EEF5FB")
+    total_fill = PatternFill("solid", fgColor="FFF2CC")
+
+    ws.merge_cells("A1:H1")
+    ws["A1"] = "鋸片醫生－客戶維修明細（未稅）"
+    ws["A1"].font = title_font
+    ws["A1"].alignment = center
+    ws["A2"] = f"客戶：{batch.customer}"
+    ws["C2"] = f"報價單號：{batch.id}"
+    ws["E2"] = f"月份範圍：{batch.month_range}"
+    ws["G2"] = f"產生日期：{generated_on:%Y-%m-%d}"
+    for cell in ("A2", "C2", "E2", "G2"):
+        ws[cell].font = body_font
+
+    headers = ["項次", "規格", "研磨", "補齒", "補座", "反板校正", "小計 NT$", "備註"]
+    row_number = 4
+    item_number = 1
+    for spec, spec_lines in groupby(ordered_lines, key=lambda line: line.spec):
+        group_lines = list(spec_lines)
+        ws.merge_cells(start_row=row_number, start_column=1, end_row=row_number, end_column=8)
+        group_cell = ws.cell(row=row_number, column=1, value=f"規格：{spec}")
+        group_cell.font = bold_font
+        group_cell.fill = group_fill
+        group_cell.alignment = left
+        group_cell.border = border
+        for column in range(2, 9):
+            ws.cell(row=row_number, column=column).border = border
+        row_number += 1
+
+        for column, header in enumerate(headers, start=1):
+            cell = ws.cell(row=row_number, column=column, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+            cell.border = border
+        row_number += 1
+
+        def actual_units(quantity_attr, unit_attr):
+            units = []
+            for line in group_lines:
+                if getattr(line, quantity_attr) and getattr(line, unit_attr) not in units:
+                    units.append(getattr(line, unit_attr))
+            return " / ".join(f"${unit}" for unit in units)
+
+        unit_values = ["單價", "", actual_units("grinding_qty", "grinding_unit"),
+                       actual_units("tooth_qty", "tooth_unit"), "",
+                       actual_units("fanban_qty", "fanban_unit"), "", ""]
+        for column, value in enumerate(unit_values, start=1):
+            cell = ws.cell(row=row_number, column=column, value=value)
+            cell.font = body_font
+            cell.fill = unit_fill
+            cell.alignment = center
+            cell.border = border
+        row_number += 1
+
+        for line in group_lines:
+            values = [
+                item_number,
+                line.spec,
+                line.grinding_qty or "",
+                line.tooth_qty or "",
+                "",
+                line.fanban_qty or "",
+                line.subtotal,
+                line.brand_id,
+            ]
+            for column, value in enumerate(values, start=1):
+                cell = ws.cell(row=row_number, column=column, value=value)
+                cell.font = body_font
+                cell.alignment = center if column != 8 else left
+                cell.border = border
+            ws.row_dimensions[row_number].height = 24
+            row_number += 1
+            item_number += 1
+
+    ws.merge_cells(start_row=row_number, start_column=1, end_row=row_number, end_column=6)
+    total_cell = ws.cell(row=row_number, column=1, value="未稅總計")
+    total_cell.font = bold_font
+    total_cell.fill = total_fill
+    total_cell.alignment = center
+    for column in range(1, 7):
+        ws.cell(row=row_number, column=column).border = border
+        ws.cell(row=row_number, column=column).fill = total_fill
+    total_value_cell = ws.cell(row=row_number, column=7, value=sum(line.subtotal for line in ordered_lines))
+    total_value_cell.font = bold_font
+    total_value_cell.fill = total_fill
+    total_value_cell.alignment = center
+    total_value_cell.border = border
+    note_cell = ws.cell(row=row_number, column=8)
+    note_cell.fill = total_fill
+    note_cell.border = border
+
+    row_number += 1
+    ws.merge_cells(start_row=row_number, start_column=1, end_row=row_number, end_column=8)
+    date_cell = ws.cell(row=row_number, column=1, value=f"產生日期：{generated_on:%Y-%m-%d}")
+    date_cell.font = body_font
+    date_cell.alignment = left
+
+    for column, width in enumerate([8, 24, 10, 10, 10, 12, 14, 18], start=1):
+        ws.column_dimensions[chr(64 + column)].width = width
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
+    ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+    ws.page_margins.left = 0.4
+    ws.page_margins.right = 0.4
+    ws.page_margins.top = 0.5
+    ws.page_margins.bottom = 0.5
+    ws.print_options.horizontalCentered = True
+
+    filename = (
+        f"客戶維修明細_{_safe_quote_filename_component(batch.customer)}_"
+        f"{_safe_quote_filename_component(batch.month_range)}_{batch.id}.xlsx"
+    )
+    output = output_dir / filename
+    if output.exists():
+        raise QuoteCollisionError(f"報價單號 {batch.id} 的客戶維修明細已存在，請建立新批次後重新匯出")
+    wb.save(output)
+    return output
+
+
 def export_dispatch_word(rows, title):
     from docx import Document
     from docx.shared import Pt, Cm, RGBColor
