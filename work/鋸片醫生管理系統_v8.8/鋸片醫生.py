@@ -214,11 +214,26 @@ def ensure_quote_schema(conn):
         id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT NOT NULL, blade_id INTEGER NOT NULL,
         display_order INTEGER NOT NULL, spec TEXT NOT NULL, brand_id TEXT NOT NULL,
         source_grind TEXT NOT NULL, source_supp_teeth TEXT NOT NULL, source_fanban TEXT NOT NULL,
+        suggested_grinding_qty INTEGER NOT NULL, suggested_grinding_unit INTEGER NOT NULL,
+        suggested_tooth_qty INTEGER NOT NULL, suggested_tooth_unit INTEGER NOT NULL,
+        suggested_fanban_qty INTEGER NOT NULL, suggested_fanban_unit INTEGER NOT NULL,
+        suggested_subtotal INTEGER NOT NULL,
         grinding_qty INTEGER NOT NULL, grinding_unit INTEGER NOT NULL,
         tooth_qty INTEGER NOT NULL, tooth_unit INTEGER NOT NULL,
         fanban_qty INTEGER NOT NULL, fanban_unit INTEGER NOT NULL,
         subtotal INTEGER NOT NULL, note TEXT NOT NULL
     )""")
+    existing_quote_line_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(quote_lines)")
+    }
+    for column in (
+        "suggested_grinding_qty", "suggested_grinding_unit",
+        "suggested_tooth_qty", "suggested_tooth_unit",
+        "suggested_fanban_qty", "suggested_fanban_unit", "suggested_subtotal",
+    ):
+        if column not in existing_quote_line_columns:
+            # 舊快照無從回推當時自動建議，因此保留 NULL；新寫入資料一律有明確值。
+            conn.execute(f"ALTER TABLE quote_lines ADD COLUMN {column} INTEGER")
     created_at = datetime.now().isoformat(timespec="seconds")
     conn.execute(
         "INSERT OR IGNORE INTO price_versions(id, effective_from, created_at) VALUES (?, ?, ?)",
@@ -373,12 +388,18 @@ def quote_line_with_manual_confirmation(line, manual_labels):
 
 def save_quote_batch(
     conn, customer, months, lines, created_by, *, quote_date, output_file,
-    batch_id=None, now=None,
+    batch_id=None, now=None, commit=True,
 ):
-    """將確認過的報價明細連同單價快照寫入一個不可覆寫的批次。"""
+    """只保存已列入的確認明細；commit=False 時由呼叫端完成交易。"""
     if not isinstance(output_file, str) or not output_file.strip():
         raise ValueError("output_file 必須是非空字串")
     output_file = output_file.strip()
+    batch_customer = str(customer)
+    snapshot_lines = tuple(line for line in lines if line.included)
+    if not snapshot_lines:
+        raise ValueError("報價至少需要一筆列入的明細")
+    if any(line.customer != batch_customer for line in snapshot_lines):
+        raise ValueError("報價批次不得混用不同客戶的明細")
     now = now or datetime.now()
     generated_batch_id = preview_quote_batch_id(conn, now)
     if batch_id is None:
@@ -389,11 +410,10 @@ def save_quote_batch(
     if not effective_rules:
         raise ValueError("報價日期沒有可用的價目版本")
     price_version_id = next(iter(effective_rules.values())).version_id
-    snapshot_lines = tuple(lines)
     subtotal = sum(line.subtotal for line in snapshot_lines)
     batch = QuoteBatch(
         id=batch_id,
-        customer=str(customer),
+        customer=batch_customer,
         month_range=_quote_month_range(months),
         created_at=now.isoformat(timespec="seconds"),
         created_by=str(created_by),
@@ -416,17 +436,28 @@ def save_quote_batch(
                 """INSERT INTO quote_lines(
                     batch_id, blade_id, display_order, spec, brand_id,
                     source_grind, source_supp_teeth, source_fanban,
+                    suggested_grinding_qty, suggested_grinding_unit,
+                    suggested_tooth_qty, suggested_tooth_unit,
+                    suggested_fanban_qty, suggested_fanban_unit, suggested_subtotal,
                     grinding_qty, grinding_unit, tooth_qty, tooth_unit,
                     fanban_qty, fanban_unit, subtotal, note
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     batch.id, line.blade_id, display_order, line.spec, line.brand_id,
                     line.source_grind, line.source_supp_teeth, line.source_fanban,
+                    line.suggested_grinding_qty if line.suggested_grinding_qty is not None else line.grinding_qty,
+                    line.suggested_grinding_unit if line.suggested_grinding_unit is not None else line.grinding_unit,
+                    line.suggested_tooth_qty if line.suggested_tooth_qty is not None else line.tooth_qty,
+                    line.suggested_tooth_unit if line.suggested_tooth_unit is not None else line.tooth_unit,
+                    line.suggested_fanban_qty if line.suggested_fanban_qty is not None else line.fanban_qty,
+                    line.suggested_fanban_unit if line.suggested_fanban_unit is not None else line.fanban_unit,
+                    line.suggested_subtotal if line.suggested_subtotal is not None else line.subtotal,
                     line.grinding_qty, line.grinding_unit, line.tooth_qty, line.tooth_unit,
                     line.fanban_qty, line.fanban_unit, line.subtotal, line.note,
                 ),
             )
-        conn.commit()
+        if commit:
+            conn.commit()
     except sqlite3.IntegrityError as error:
         conn.rollback()
         raise QuoteCollisionError(f"報價批次 {batch_id} 已存在") from error
@@ -1275,6 +1306,57 @@ def export_customer_quote_excel(output_dir, batch, lines):
         raise QuoteCollisionError(f"報價單號 {batch.id} 的客戶維修明細已存在，請建立新批次後重新匯出")
     wb.save(output)
     return output
+
+
+def save_and_export_customer_quote(
+    conn, output_dir, customer, months, lines, created_by, *, quote_date,
+    now=None, exporter=None,
+):
+    """在同一交易中建立快照與 Excel；任一步驟失敗即取消兩邊結果。"""
+    if conn.in_transaction:
+        raise RuntimeError("產生報價前資料庫不得有未完成的交易")
+    exporter = exporter or export_customer_quote_excel
+    now = now or datetime.now()
+    output_dir = Path(output_dir)
+    target = None
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        batch_id = preview_quote_batch_id(conn, now)
+        month_range = _quote_month_range(months)
+        output_file = quote_output_filename(customer, month_range, batch_id)
+        target = output_dir / output_file
+        if target.exists():
+            raise QuoteCollisionError("同名 Excel 已存在，請重新確認後再產生")
+        batch = save_quote_batch(
+            conn, customer, months, lines, created_by,
+            quote_date=quote_date, output_file=output_file,
+            batch_id=batch_id, now=now, commit=False,
+        )
+        try:
+            output = Path(exporter(output_dir, batch, lines))
+        except QuoteCollisionError:
+            # 若匯出器發現競爭者先建立同名檔案，不可刪除該既有檔案。
+            raise
+        except Exception:
+            if target.exists():
+                target.unlink()
+            raise
+        if output.resolve() != target.resolve() or not target.is_file():
+            if target.exists():
+                target.unlink()
+            raise RuntimeError("Excel 匯出未產生預期的報價檔案")
+        try:
+            conn.commit()
+        except Exception as error:
+            conn.rollback()
+            if target.exists():
+                target.unlink()
+            raise RuntimeError("資料庫提交失敗，報價快照與 Excel 已取消") from error
+        return batch, target
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
 
 
 def export_dispatch_word(rows, title):
@@ -2667,17 +2749,10 @@ class App:
             output_dir = BASE / "客戶維修報價"
             try:
                 with get_db() as conn:
-                    batch_id = preview_quote_batch_id(conn)
-                    month_range = _quote_month_range(months)
-                    output_file = quote_output_filename(customer, month_range, batch_id)
-                    target = output_dir / output_file
-                    if target.exists():
-                        raise QuoteCollisionError("同名 Excel 已存在，請重新確認後再產生")
-                    batch = save_quote_batch(
-                        conn, customer, months, included, "鋸片醫生",
-                        quote_date=quote_date, output_file=output_file, batch_id=batch_id,
+                    _batch, output = save_and_export_customer_quote(
+                        conn, output_dir, customer, months, included, "鋸片醫生",
+                        quote_date=quote_date,
                     )
-                output = export_customer_quote_excel(output_dir, batch, included)
                 if os.name == "nt" and hasattr(os, "startfile"): os.startfile(str(output))
                 self.log(f"✅ 客戶維修報價明細已輸出: {output.name}")
                 dialog.destroy()

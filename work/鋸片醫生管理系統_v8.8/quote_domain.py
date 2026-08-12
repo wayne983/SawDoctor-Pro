@@ -41,6 +41,13 @@ class QuoteLineDraft:
     tooth_unit: int
     fanban_qty: int
     fanban_unit: int
+    suggested_grinding_qty: int | None = None
+    suggested_grinding_unit: int | None = None
+    suggested_tooth_qty: int | None = None
+    suggested_tooth_unit: int | None = None
+    suggested_fanban_qty: int | None = None
+    suggested_fanban_unit: int | None = None
+    suggested_subtotal: int | None = None
     included: bool = True
     note: str = ""
 
@@ -115,6 +122,17 @@ def build_quote_line(blade: Mapping[str, Any], rule: PriceRule) -> QuoteLineDraf
         tooth_unit=rule.tooth_price if tooth_qty else 0,
         fanban_qty=fanban_qty,
         fanban_unit=rule.fanban_price if fanban_qty else 0,
+        suggested_grinding_qty=grinding_qty,
+        suggested_grinding_unit=rule.grinding_price if grinding_qty else 0,
+        suggested_tooth_qty=tooth_qty,
+        suggested_tooth_unit=rule.tooth_price if tooth_qty else 0,
+        suggested_fanban_qty=fanban_qty,
+        suggested_fanban_unit=rule.fanban_price if fanban_qty else 0,
+        suggested_subtotal=(
+            grinding_qty * (rule.grinding_price if grinding_qty else 0)
+            + tooth_qty * (rule.tooth_price if tooth_qty else 0)
+            + fanban_qty * (rule.fanban_price if fanban_qty else 0)
+        ),
     )
 
 

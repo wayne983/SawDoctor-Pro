@@ -71,6 +71,31 @@ class QuoteDomainTests(unittest.TestCase):
         self.assertEqual(line.subtotal, 540)
         self.assertEqual(source["supp_teeth"], "2")
 
+    def test_manual_quote_keeps_original_automatic_suggestion(self):
+        blade = {
+            "id": 1,
+            "customer": "甲",
+            "brand_id": "4012",
+            "od": "305",
+            "thickness": "3.0",
+            "teeth": "100",
+            "grind": "是",
+            "supp_teeth": "2",
+            "fanban": "-",
+        }
+        line = build_quote_line(blade, price_rule_for("305", date(2026, 8, 13)))
+
+        changed = apply_manual_quote(line, tooth_qty=1, tooth_unit=120)
+
+        self.assertEqual(changed.suggested_grinding_qty, 1)
+        self.assertEqual(changed.suggested_grinding_unit, 240)
+        self.assertEqual(changed.suggested_tooth_qty, 2)
+        self.assertEqual(changed.suggested_tooth_unit, 150)
+        self.assertEqual(changed.suggested_fanban_qty, 0)
+        self.assertEqual(changed.suggested_fanban_unit, 0)
+        self.assertEqual(changed.suggested_subtotal, 540)
+        self.assertEqual((changed.tooth_qty, changed.tooth_unit, changed.subtotal), (1, 120, 360))
+
     def test_manual_quote_rejects_nonnegative_integer_validation_failures(self):
         blade = {
             "id": 1,
