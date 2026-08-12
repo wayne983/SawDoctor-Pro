@@ -1033,9 +1033,13 @@ def export_customer_quote_excel(output_dir, batch, lines):
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
+    included_lines = tuple(line for line in lines if line.included)
+    if any(line.customer != batch.customer for line in included_lines):
+        raise ValueError("客戶維修明細不得混用不同客戶的報價列")
+
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    ordered_lines = sorted(lines, key=lambda line: (line.spec, line.brand_id, line.blade_id))
+    ordered_lines = sorted(included_lines, key=lambda line: (line.spec, line.brand_id, line.blade_id))
     generated_on = datetime.now()
 
     wb = Workbook()

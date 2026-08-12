@@ -96,6 +96,17 @@ class QuoteExcelTests(unittest.TestCase):
                 any(cell.value == "$240 / $300" for row in ws.iter_rows() for cell in row)
             )
 
+    def test_export_rejects_mismatched_customer_without_creating_workbook(self):
+        with TemporaryDirectory() as directory:
+            output_dir = Path(directory) / "quote-output"
+            mismatched = line("4012", 540)
+            mismatched = mismatched.__class__(**{**mismatched.__dict__, "customer": "乙"})
+
+            with self.assertRaisesRegex(ValueError, "客戶"):
+                app.export_customer_quote_excel(output_dir, batch("甲"), [mismatched])
+
+            self.assertFalse(output_dir.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
