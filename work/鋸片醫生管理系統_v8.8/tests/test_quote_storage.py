@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import sqlite3
 import sys
 import unittest
@@ -213,6 +214,23 @@ class QuoteStorageTests(unittest.TestCase):
                 self.assertEqual(count_batches(conn), 0)
             finally:
                 conn.close()
+
+    @unittest.skipUnless(os.name == "nt", "Windows 檔案分享鎖定測試")
+    def test_windows_cleanup_handle_blocks_replacement_after_identity_check(self):
+        with TemporaryDirectory() as directory:
+            target = Path(directory) / "quote.xlsx"
+            published = app.publish_quote_output(
+                target, lambda temporary: temporary.write_bytes(b"transaction workbook")
+            )
+            handle = app._open_windows_published_output_for_cleanup(published)
+            try:
+                self.assertIsNotNone(handle)
+                with self.assertRaises(PermissionError):
+                    target.unlink()
+            finally:
+                if handle is not None:
+                    app._close_windows_handle(handle)
+            target.unlink()
 
     def test_atomic_quote_success_commits_snapshot_matching_final_workbook_name(self):
         with TemporaryDirectory() as directory:

@@ -181,14 +181,6 @@ class PublishedQuoteOutput:
     path: Path
     file_identity: tuple[int, int]
 
-    def is_current_publication(self):
-        """目標路徑仍指向本交易發布的同一個檔案時才允許清理。"""
-        try:
-            current = self.path.stat()
-        except FileNotFoundError:
-            return False
-        return (current.st_dev, current.st_ino) == self.file_identity
-
 
 @dataclass(frozen=True)
 class QuoteBatch:
@@ -1205,15 +1197,141 @@ def publish_quote_output(target, write_temporary_file):
         write_temporary_file(temporary)
         if not temporary.is_file():
             raise RuntimeError("報價匯出未產生暫存檔案")
+        file_identity = _quote_output_file_identity(temporary)
         try:
             os.link(temporary, target)
         except FileExistsError as error:
             raise QuoteCollisionError(f"報價單號的輸出檔案已存在：{target.name}") from error
-        published = target.stat()
-        return PublishedQuoteOutput(target, (published.st_dev, published.st_ino))
+        return PublishedQuoteOutput(target, file_identity)
     finally:
         if temporary.exists():
             temporary.unlink()
+
+
+def _quote_output_file_identity(path):
+    """取得發布前暫存檔的身分；Windows 使用卷冊與檔案索引。"""
+    if os.name == "nt":
+        return _windows_file_identity_from_path(path)
+    stat_result = Path(path).stat()
+    return stat_result.st_dev, stat_result.st_ino
+
+
+def _windows_file_identity_from_path(path):
+    handle = _open_windows_file_handle(
+        path, access=0x80, share_mode=0x00000001 | 0x00000002 | 0x00000004,
+    )
+    try:
+        return _windows_file_identity_from_handle(handle)
+    finally:
+        _close_windows_handle(handle)
+
+
+def _open_windows_published_output_for_cleanup(published_output):
+    """開啟不分享 DELETE 的目標，並在同一控制代碼驗證發布身分。"""
+    if os.name != "nt":
+        return None
+    try:
+        handle = _open_windows_file_handle(
+            published_output.path, access=0x00010000 | 0x80,
+            share_mode=0x00000001 | 0x00000002,
+        )
+    except FileNotFoundError:
+        return None
+    try:
+        if _windows_file_identity_from_handle(handle) != published_output.file_identity:
+            _close_windows_handle(handle)
+            return None
+        return handle
+    except Exception:
+        _close_windows_handle(handle)
+        raise
+
+
+def _delete_published_quote_output(published_output):
+    """Windows 上由已驗證且鎖定的同一控制代碼刪除；其他平台保守保留。"""
+    if os.name != "nt":
+        # 無法以單一原子檔案控制代碼證明所有權時，保留孤兒檔比刪除外部檔安全。
+        return False
+    handle = _open_windows_published_output_for_cleanup(published_output)
+    if handle is None:
+        return False
+    try:
+        import ctypes
+
+        class FileDispositionInfo(ctypes.Structure):
+            _fields_ = [("delete_file", ctypes.c_ubyte)]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        set_information = kernel32.SetFileInformationByHandle
+        set_information.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_ulong]
+        set_information.restype = ctypes.c_int
+        disposition = FileDispositionInfo(1)
+        if not set_information(handle, 4, ctypes.byref(disposition), ctypes.sizeof(disposition)):
+            return False
+        return True
+    finally:
+        _close_windows_handle(handle)
+
+
+def _open_windows_file_handle(path, *, access, share_mode):
+    import ctypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_file = kernel32.CreateFileW
+    create_file.argtypes = [
+        ctypes.c_wchar_p, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_void_p,
+        ctypes.c_ulong, ctypes.c_ulong, ctypes.c_void_p,
+    ]
+    create_file.restype = ctypes.c_void_p
+    handle = create_file(str(path), access, share_mode, None, 3, 0x80, None)
+    invalid_handle = ctypes.c_void_p(-1).value
+    if handle == invalid_handle:
+        error = ctypes.get_last_error()
+        if error in (2, 3):
+            raise FileNotFoundError(error, "找不到報價輸出檔案", str(path))
+        raise OSError(error, "無法開啟報價輸出檔案", str(path))
+    return handle
+
+
+def _windows_file_identity_from_handle(handle):
+    import ctypes
+    from ctypes import wintypes
+
+    class ByHandleFileInformation(ctypes.Structure):
+        _fields_ = [
+            ("file_attributes", wintypes.DWORD),
+            ("creation_time", wintypes.FILETIME),
+            ("last_access_time", wintypes.FILETIME),
+            ("last_write_time", wintypes.FILETIME),
+            ("volume_serial_number", wintypes.DWORD),
+            ("file_size_high", wintypes.DWORD),
+            ("file_size_low", wintypes.DWORD),
+            ("number_of_links", wintypes.DWORD),
+            ("file_index_high", wintypes.DWORD),
+            ("file_index_low", wintypes.DWORD),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    get_information = kernel32.GetFileInformationByHandle
+    get_information.argtypes = [ctypes.c_void_p, ctypes.POINTER(ByHandleFileInformation)]
+    get_information.restype = ctypes.c_int
+    information = ByHandleFileInformation()
+    if not get_information(handle, ctypes.byref(information)):
+        raise OSError(ctypes.get_last_error(), "無法讀取報價輸出檔案身分")
+    return (
+        information.volume_serial_number,
+        (information.file_index_high << 32) | information.file_index_low,
+    )
+
+
+def _close_windows_handle(handle):
+    import ctypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = [ctypes.c_void_p]
+    close_handle.restype = ctypes.c_int
+    close_handle(handle)
 
 
 def export_customer_quote_excel(output_dir, batch, lines):
@@ -1427,8 +1545,7 @@ def save_and_export_customer_quote(
         if conn.in_transaction:
             conn.rollback()
         for created_output in created_outputs:
-            if created_output.is_current_publication():
-                created_output.path.unlink()
+            _delete_published_quote_output(created_output)
         raise
 
 
