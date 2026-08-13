@@ -56,6 +56,9 @@ except ImportError:
 
 # ─── 路徑 ────────────────────────────────────────────────────
 BASE = Path(__file__).resolve().parent
+VENDOR_DIR = BASE / "vendor"
+if VENDOR_DIR.is_dir() and str(VENDOR_DIR) not in sys.path:
+    sys.path.insert(0, str(VENDOR_DIR))
 DB_FILE = BASE / "sawblade.db"
 CFG_FILE = BASE / "config.json"
 LOG_FILE = BASE / "scan.log"
@@ -765,106 +768,33 @@ DISPATCH_HTML = BASE / "派工清單.html"
 def gen_dispatch_html(rows, title="派工清單", mode="vendor"):
     """廠商對帳派工清單 — 直式 A4,支援電子勾選+回傳 JSON 檔"""
     import json as _json
-    def yn(v): return "✓" if v=="是" else "—"
-    def nd(v): return v if v and v not in ("-","0","") else "—"
 
     # 產生單號
     serial = f"D-{datetime.now().strftime('%y%m%d%H%M')}"
 
-    # 先建立資料陣列 (供 JS 使用) — 相同客戶+規格+工序的整合成一列
-    raw_items = []
-    for b in rows:
-        already_done = b["status"] in ("complete","已出貨") or bool(b["ok_date"])
-        raw_items.append({
-            "folder_path": b["folder_path"] if "folder_path" in b.keys() else "",
-            "customer": b["customer"] or "",
-            "brand_id": b["brand_id"] or "",
-            "spec": spec_str(b),
-            "grind": yn(b["grind"]),
-            "supp_teeth": nd(b["supp_teeth"]),
-            "supp_seats": nd(b["supp_seats"]),
-            "fanban": yn(b["fanban"]),
-            "steel": yn(b["steel"]),
-            "receipt_date": b["receipt_date"] or "",
-            "late_deadline": b["late_deadline"] or "",
-            "already_done": already_done,
-        })
-
-    # 分組鍵 = 客戶 + 規格 + 工序(不含編號)
-    def _group_key(r):
-        return (r["customer"], r["spec"],
-                r["grind"], r["supp_teeth"], r["supp_seats"],
-                r["fanban"], r["steel"])
-
-    # 保持原順序的分組
-    grouped = {}
-    order = []
-    for r in raw_items:
-        k = _group_key(r)
-        if k not in grouped:
-            grouped[k] = []
-            order.append(k)
-        grouped[k].append(r)
-
-    items = []
-    for i, k in enumerate(order, 1):
-        members = grouped[k]
-        # 以最早進貨日、最晚交期作為代表
-        r0 = members[0]
-        recs = [m["receipt_date"] for m in members if m["receipt_date"]]
-        lates = [m["late_deadline"] for m in members if m["late_deadline"]]
-        # 所有編號合併顯示,以「/」分隔
-        brand_ids = [m["brand_id"] for m in members if m["brand_id"]]
-        # 勾選狀態:全部都已完成才預先打勾
-        all_done = all(m["already_done"] for m in members)
-
-        items.append({
-            "idx": i,
-            "count": len(members),
-            "folder_paths": [m["folder_path"] for m in members],
-            "customer": r0["customer"],
-            "brand_ids": brand_ids,
-            "brand_display": " / ".join(brand_ids) if brand_ids else "-",
-            "spec": r0["spec"],
-            "grind": r0["grind"],
-            "supp_teeth": r0["supp_teeth"],
-            "supp_seats": r0["supp_seats"],
-            "fanban": r0["fanban"],
-            "steel": r0["steel"],
-            "receipt_date": min(recs) if recs else "",
-            "late_deadline": max(lates) if lates else "",
-            "already_done": all_done,
-            "checked": all_done,
-        })
+    # HTML、Excel、Word 共用同一套派工分組，避免三種輸出結果不一致。
+    items = _group_for_export(rows)
 
     items_json = _json.dumps(items, ensure_ascii=False)
-    total = len(items)
-    done_cnt = sum(1 for x in items if x["already_done"])
-
-    # 組工序欄:如果有補齒/補座/反板/鋼面就顯示內容,否則顯示 —
-    def ops_cell(x):
-        tags = []
-        if x["grind"] == "✓":      tags.append('<span class="tag grind">研</span>')
-        if x["supp_teeth"] != "—": tags.append(f'<span class="tag teeth">補{x["supp_teeth"]}齒</span>')
-        if x["supp_seats"] != "—": tags.append(f'<span class="tag seats">補{x["supp_seats"]}座</span>')
-        if x["fanban"] == "✓":     tags.append('<span class="tag fan">反板</span>')
-        if x["steel"] == "✓":      tags.append('<span class="tag steel">鋼面</span>')
-        return "".join(tags) or "—"
+    total = sum(x["count"] for x in items)
+    done_cnt = sum(x["count"] for x in items if x["already_done"])
 
     trs = ""
     for x in items:
         cls = "done" if x["checked"] else ""
         mark = "☑" if x["checked"] else "☐"
-        cnt_badge = f'<span class="cnt-badge">×{x["count"]}</span>' if x["count"] > 1 else ""
         trs += f"""<tr data-idx="{x['idx']}" class="{cls}">
           <td class="chk">{mark}</td>
           <td class="num">{x['idx']}</td>
-          <td class="cust">{x['customer']}{cnt_badge}</td>
+          <td class="cust">{x['customer']}</td>
+          <td class="qty">{x['count']}</td>
           <td class="bid">{x['brand_display']}</td>
           <td class="spec">{x['spec']}</td>
-          <td class="ops">{ops_cell(x)}</td>
-          <td class="date">{x['receipt_date']}<br><small>→ {x['late_deadline']}</small></td>
-          <td class="note"></td>
+          <td>{x['supp_teeth'] or '—'}</td>
+          <td>{x['supp_seats'] or '—'}</td>
+          <td>{x['fanban'] or '—'}</td>
+          <td>{x['steel'] or '—'}</td>
+          <td class="date">{x['date_display']}</td>
         </tr>"""
 
     html = f"""<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
@@ -884,40 +814,27 @@ body{{font-family:"Microsoft JhengHei","PMingLiU",sans-serif;padding:10px 14px;c
 .stats .total{{background:#1a3a5c;color:white}}
 .stats .done{{background:#d4edda;color:#155724;border:1px solid #8fd19e}}
 .stats .pending{{background:#fff3cd;color:#856404;border:1px solid #ffd56b}}
-table{{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}}
-col.c-chk{{width:38px}} col.c-num{{width:32px}}
-col.c-cust{{width:74px}} col.c-bid{{width:100px}}
-col.c-spec{{width:110px}} col.c-ops{{width:auto}}
-col.c-date{{width:90px}} col.c-note{{width:64px}}
-th,td{{border:1px solid #555;padding:6px 6px;vertical-align:middle;overflow:hidden}}
-th{{background:#e8eef7;font-weight:bold;text-align:center;font-size:13px;padding:8px 4px}}
+table{{width:100%;border-collapse:collapse;font-size:14pt;table-layout:fixed}}
+col.c-chk{{width:34px}} col.c-num{{width:34px}} col.c-cust{{width:62px}}
+col.c-qty{{width:48px}} col.c-bid{{width:76px}} col.c-spec{{width:100px}}
+col.c-repair{{width:48px}} col.c-date{{width:94px}}
+th,td{{border:1px solid #555;padding:6px 4px;vertical-align:middle;overflow:hidden;text-align:center}}
+th{{background:#e8eef7;font-weight:bold;text-align:center;font-size:14pt;padding:8px 3px}}
 td.chk{{text-align:center;font-size:26px;line-height:1;padding:4px;cursor:pointer;user-select:none}}
 td.chk:hover{{background:#fffbd8}}
-td.num{{text-align:center;color:#888;font-size:13px}}
-td.date{{font-size:13px;text-align:center;white-space:nowrap;line-height:1.3}}
-td.date small{{color:#c00;font-size:12px}}
-td.cust{{font-weight:bold;text-align:center;font-size:15px}}
-td.bid{{font-family:monospace;font-size:13px;text-align:center;word-break:break-all;line-height:1.3}}
-td.spec{{text-align:center;font-size:13px;font-weight:bold}}
-td.ops{{padding:4px}}
-td.note{{background:#fffef0}}
-.cnt-badge{{display:inline-block;background:#dc2626;color:white;border-radius:10px;padding:1px 7px;font-size:12px;font-weight:bold;margin-left:4px;vertical-align:middle}}
-.tag{{display:inline-block;padding:2px 7px;margin:2px;font-size:13px;border-radius:4px;color:white;white-space:nowrap;font-weight:bold}}
-.tag.grind{{background:#6b7280}}
-.tag.teeth{{background:#ef4444}}
-.tag.seats{{background:#f59e0b}}
-.tag.fan{{background:#8b5cf6}}
-.tag.steel{{background:#0ea5e9}}
+td.num{{color:#666}}
+td.qty{{font-weight:bold}}
+td.cust{{font-weight:bold}}
+td.bid{{font-family:monospace;word-break:break-all;line-height:1.2}}
+td.spec{{font-weight:bold}}
+td.date{{white-space:nowrap;line-height:1.3}}
 tr.done{{background:#f0f0f0;color:#888}}
 tr.done td.chk{{color:#080}}
-tr.done td.ops .tag{{opacity:.55}}
 tr:nth-child(even):not(.done){{background:#fcfcfc}}
 .sign{{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px}}
 .sign .slot{{border:1px solid #666;padding:10px 14px;min-height:80px;position:relative}}
 .sign .slot b{{display:block;margin-bottom:36px;color:#333;font-size:14px}}
 .sign .slot small{{position:absolute;bottom:6px;right:10px;color:#999;font-size:11px}}
-.notes{{margin-top:10px;border:1px solid #999;padding:8px 10px;font-size:13px;min-height:50px;background:#fffef0}}
-.notes b{{display:block;margin-bottom:4px}}
 .bar{{margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;background:#f4f6fa;padding:8px 0;z-index:10;border-bottom:1px solid #ddd}}
 .bar button{{padding:8px 14px;font-size:13px;border:none;border-radius:4px;cursor:pointer;color:white;background:#1a3a5c}}
 .bar button:hover{{filter:brightness(1.15)}}
@@ -934,7 +851,6 @@ tr:nth-child(even):not(.done){{background:#fcfcfc}}
   .page{{box-shadow:none;padding:6mm 6mm;max-width:none}}
   @page{{size:A4 portrait;margin:8mm}}
   tr.done{{background:#e5e5e5 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-  .tag{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 }}
 </style></head><body>
 
@@ -986,20 +902,18 @@ tr:nth-child(even):not(.done){{background:#fcfcfc}}
 
 <table>
 <colgroup>
-<col class="c-chk"><col class="c-num"><col class="c-cust"><col class="c-bid">
-<col class="c-spec"><col class="c-ops"><col class="c-date"><col class="c-note">
+<col class="c-chk"><col class="c-num"><col class="c-cust"><col class="c-qty"><col class="c-bid">
+<col class="c-spec"><col class="c-repair"><col class="c-repair"><col class="c-repair"><col class="c-repair"><col class="c-date">
 </colgroup>
 <thead><tr>
-<th>勾選</th><th>#</th><th>客戶</th><th>編號</th>
-<th>規格</th><th>維修工序</th><th>進貨日 / 交期</th><th>備註</th>
+<th>勾選</th><th>項次</th><th>客戶</th><th>數量</th><th>編號</th><th>規格</th>
+<th>補齒</th><th>補座</th><th>反板</th><th>鋼面</th><th>進貨日／交期</th>
 </tr></thead><tbody id="tb">{trs}</tbody></table>
 
 <div class="sign">
   <div class="slot"><b>廠商簽收</b><small>簽名 / 蓋章 / 日期</small></div>
   <div class="slot"><b>鋸片醫生覆核</b><small>簽名 / 日期</small></div>
 </div>
-
-<div class="notes"><b>備註 / 異常說明:</b></div>
 
 </div>
 
@@ -1086,9 +1000,22 @@ tr:nth-child(even):not(.done){{background:#fcfcfc}}
     with open(DISPATCH_HTML,"w",encoding="utf-8") as f: f.write(html)
     return DISPATCH_HTML
 
-# ─── 派工清單 Excel / Word 匯出 ──────────────────────────────
+# ─── 派工清單共用資料整理 ────────────────────────────────────
+def _format_dispatch_date_range(receipt_date, late_deadline):
+    """將派工日期顯示為 MM/DD-MM/DD；缺少一端時保留已知日期。"""
+    def short_date(value):
+        if not value:
+            return ""
+        try:
+            return datetime.fromisoformat(str(value)).strftime("%m/%d")
+        except ValueError:
+            return str(value)
+
+    return "-".join(value for value in (short_date(receipt_date), short_date(late_deadline)) if value)
+
+
 def _group_for_export(rows):
-    """跟 HTML 一樣的合併邏輯,回傳 list of dict"""
+    """建立三種派工輸出共用的列資料；只有純研磨鋸片可合併。"""
     raw = []
     for b in rows:
         already_done = b["status"] in ("complete","已出貨") or bool(b["ok_date"])
@@ -1101,15 +1028,21 @@ def _group_for_export(rows):
             "supp_seats": b["supp_seats"] if b["supp_seats"] not in ("-","0","",None) else "",
             "fanban": "是" if b["fanban"]=="是" else "",
             "steel": "是" if b["steel"]=="是" else "",
+            "grind": "是" if b["grind"]=="是" else "",
             "receipt_date": b["receipt_date"] or "",
             "late_deadline": b["late_deadline"] or "",
             "already_done": already_done,
-            "status": b["status"],
         })
-    def k(r): return (r["customer"], r["spec"], r["supp_teeth"], r["supp_seats"], r["fanban"], r["steel"])
+
+    def is_pure_grinding(r):
+        return r["grind"] == "是" and not any(
+            (r["supp_teeth"], r["supp_seats"], r["fanban"], r["steel"])
+        )
+
     grouped = {}; order = []
-    for r in raw:
-        kk = k(r)
+    for original_index, r in enumerate(raw):
+        # 有任何附加工序時，一支鋸片就是一個獨立派工列。
+        kk = ("pure", r["customer"], r["spec"]) if is_pure_grinding(r) else ("single", original_index)
         if kk not in grouped: grouped[kk] = []; order.append(kk)
         grouped[kk].append(r)
     out = []
@@ -1118,8 +1051,11 @@ def _group_for_export(rows):
         out.append({
             "idx": i, "count": len(m),
             "customer": m[0]["customer"],
-            "brand_display": " / ".join(x["brand_id"] for x in m if x["brand_id"]),
+            "brand_ids": [x["brand_id"] for x in m if x["brand_id"]],
+            "folder_paths": [x["folder_path"] for x in m],
+            "brand_display": m[0]["brand_id"] or "-",
             "spec": m[0]["spec"],
+            "grind": m[0]["grind"],
             "supp_teeth": m[0]["supp_teeth"],
             "supp_seats": m[0]["supp_seats"],
             "fanban": m[0]["fanban"],
@@ -1128,26 +1064,31 @@ def _group_for_export(rows):
             "late_deadline": max((x["late_deadline"] for x in m if x["late_deadline"]), default=""),
             "all_done": all(x["already_done"] for x in m),
         })
+        out[-1]["already_done"] = out[-1]["all_done"]
+        out[-1]["checked"] = out[-1]["all_done"]
+        out[-1]["date_display"] = _format_dispatch_date_range(
+            out[-1]["receipt_date"], out[-1]["late_deadline"]
+        )
     return out
 
 def export_dispatch_excel(rows, title):
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    from openpyxl.utils import get_column_letter
     items = _group_for_export(rows)
     wb = Workbook(); ws = wb.active; ws.title = "派工清單"
     thin = Side(style="thin", color="666666")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
     left   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
-    bold = Font(bold=True, size=12, name="微軟正黑體")
+    bold = Font(bold=True, size=14, name="微軟正黑體")
     title_font = Font(bold=True, size=18, name="微軟正黑體")
-    head_font  = Font(bold=True, size=11, name="微軟正黑體", color="FFFFFF")
+    head_font  = Font(bold=True, size=14, name="微軟正黑體", color="FFFFFF")
     head_fill  = PatternFill("solid", fgColor="1A3A5C")
     done_fill  = PatternFill("solid", fgColor="E5E7EB")
-    note_fill  = PatternFill("solid", fgColor="FFFBEB")
 
     # 標題
-    ws.merge_cells("A1:J1")
+    ws.merge_cells("A1:K1")
     ws["A1"] = f"鋸片醫生 — {title}"; ws["A1"].font = title_font; ws["A1"].alignment = center
     ws.row_dimensions[1].height = 28
     # 表頭資訊
@@ -1161,56 +1102,46 @@ def export_dispatch_excel(rows, title):
     ws["C3"].border = ws["G3"].border = Border(bottom=Side(style="thin"))
 
     # 表頭列
-    headers = ["勾選","#","客戶","編號","規格","補齒","補座","反板","鋼面","進貨日 / 交期"]
+    headers = ["勾選","項次","客戶","數量","編號","規格","補齒","補座","反板","鋼面","進貨日／交期"]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=5, column=col, value=h)
         cell.font = head_font; cell.fill = head_fill
         cell.alignment = center; cell.border = border
-    ws.row_dimensions[5].height = 24
+    ws.row_dimensions[5].height = 42
 
     # 內容
     for i, x in enumerate(items, 1):
         r = 5 + i
-        cust_disp = x["customer"] + (f" ×{x['count']}" if x["count"]>1 else "")
-        date_disp = f"{x['receipt_date']}\n→ {x['late_deadline']}"
-        vals = ["☑" if x["all_done"] else "☐", x["idx"], cust_disp, x["brand_display"],
-                x["spec"], x["supp_teeth"] or "—", x["supp_seats"] or "—",
-                x["fanban"] or "—", x["steel"] or "—", date_disp]
+        vals = ["☑" if x["all_done"] else "☐", x["idx"], x["customer"], x["count"],
+                x["brand_display"], x["spec"], x["supp_teeth"] or "—", x["supp_seats"] or "—",
+                x["fanban"] or "—", x["steel"] or "—", x["date_display"]]
         for col, v in enumerate(vals, 1):
             c = ws.cell(row=r, column=col, value=v)
             c.alignment = center; c.border = border
-            c.font = Font(size=11, name="微軟正黑體", bold=(col==3))
+            c.font = Font(size=14, name="微軟正黑體", bold=(col in (3, 4)))
             if x["all_done"]:
                 c.fill = done_fill
-        ws.row_dimensions[r].height = 32
+        ws.row_dimensions[r].height = 42
 
     # 統計
     last = 5 + len(items) + 2
-    total = len(items); done = sum(1 for x in items if x["all_done"])
+    total = sum(x["count"] for x in items); done = sum(x["count"] for x in items if x["all_done"])
     ws.cell(row=last, column=1, value=f"總件數: {total}    已完成: {done}    未完成: {total-done}").font = bold
-    ws.merge_cells(start_row=last, start_column=1, end_row=last, end_column=10)
+    ws.merge_cells(start_row=last, start_column=1, end_row=last, end_column=11)
     # 簽收區
     sign_r = last + 2
     ws.cell(row=sign_r, column=1, value="廠商簽收:"); ws.cell(row=sign_r, column=1).font = bold
-    ws.merge_cells(start_row=sign_r, start_column=2, end_row=sign_r+2, end_column=5)
-    ws.cell(row=sign_r, column=6, value="鋸片醫生覆核:"); ws.cell(row=sign_r, column=6).font = bold
-    ws.merge_cells(start_row=sign_r, start_column=7, end_row=sign_r+2, end_column=10)
+    ws.merge_cells(start_row=sign_r, start_column=2, end_row=sign_r+2, end_column=6)
+    ws.cell(row=sign_r, column=7, value="鋸片醫生覆核:"); ws.cell(row=sign_r, column=7).font = bold
+    ws.merge_cells(start_row=sign_r, start_column=8, end_row=sign_r+2, end_column=11)
     for r in range(sign_r, sign_r+3):
-        for col in range(1, 11):
+        for col in range(1, 12):
             c = ws.cell(row=r, column=col); c.border = border
-    # 備註
-    nr = sign_r + 4
-    ws.cell(row=nr, column=1, value="備註 / 異常說明:").font = bold
-    ws.merge_cells(start_row=nr, start_column=1, end_row=nr, end_column=10)
-    ws.merge_cells(start_row=nr+1, start_column=1, end_row=nr+3, end_column=10)
-    for r in range(nr+1, nr+4):
-        for col in range(1, 11):
-            c = ws.cell(row=r, column=col); c.border = border; c.fill = note_fill
 
     # 欄寬
-    widths = [6, 5, 12, 16, 14, 7, 7, 7, 7, 16]
+    widths = [6, 6, 10, 7, 12, 13, 7, 7, 7, 7, 16]
     for i, w in enumerate(widths, 1):
-        ws.column_dimensions[chr(64+i)].width = w
+        ws.column_dimensions[get_column_letter(i)].width = w
 
     # 列印設定:A4 直式
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
@@ -1811,27 +1742,27 @@ def export_dispatch_word(rows, title):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     r2 = p.add_run(f"列印日期:{datetime.now().strftime('%Y-%m-%d')}　單號:D-{datetime.now().strftime('%y%m%d%H%M')}")
-    r2.font.size = Pt(10); r2.font.name = "微軟正黑體"
+    r2.font.size = Pt(14); r2.font.name = "微軟正黑體"
     r2._element.rPr.rFonts.set(qn('w:eastAsia'), '微軟正黑體')
 
     # 表頭資料
     info = doc.add_paragraph()
     ir = info.add_run("廠商:_______________  　　交貨日:_______________  　　收件人:_______________")
-    ir.font.size = Pt(11); ir.font.name = "微軟正黑體"
+    ir.font.size = Pt(14); ir.font.name = "微軟正黑體"
     ir._element.rPr.rFonts.set(qn('w:eastAsia'), '微軟正黑體')
 
-    total = len(items); done = sum(1 for x in items if x["all_done"])
+    total = sum(x["count"] for x in items); done = sum(x["count"] for x in items if x["all_done"])
     s = doc.add_paragraph()
     sr = s.add_run(f"總件數 {total}　|　已完成 {done}　|　未完成 {total-done}")
-    sr.font.size = Pt(12); sr.font.bold = True; sr.font.name = "微軟正黑體"
+    sr.font.size = Pt(14); sr.font.bold = True; sr.font.name = "微軟正黑體"
     sr._element.rPr.rFonts.set(qn('w:eastAsia'), '微軟正黑體')
 
     # 表格
-    headers = ["勾選","#","客戶","編號","規格","補齒","補座","反板","鋼面","進貨日/交期"]
+    headers = ["勾選","項次","客戶","數量","編號","規格","補齒","補座","反板","鋼面","進貨日／交期"]
     table = doc.add_table(rows=1+len(items), cols=len(headers))
     table.style = "Table Grid"
     # 寬度設定
-    widths = [Cm(1.2), Cm(0.9), Cm(1.8), Cm(2.5), Cm(2.4), Cm(1.1), Cm(1.1), Cm(1.1), Cm(1.1), Cm(2.6)]
+    widths = [Cm(1.0), Cm(0.9), Cm(1.4), Cm(1.0), Cm(1.7), Cm(2.0), Cm(1.0), Cm(1.0), Cm(1.0), Cm(1.0), Cm(2.4)]
     for i, w in enumerate(widths):
         for cell in table.columns[i].cells:
             cell.width = w
@@ -1842,7 +1773,7 @@ def export_dispatch_word(rows, title):
         cell.text = ""
         para = cell.paragraphs[0]; para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = para.add_run(h)
-        run.font.size = Pt(11); run.font.bold = True; run.font.name = "微軟正黑體"
+        run.font.size = Pt(14); run.font.bold = True; run.font.name = "微軟正黑體"
         run._element.rPr.rFonts.set(qn('w:eastAsia'), '微軟正黑體')
         # 表頭背景色
         tcPr = cell._tc.get_or_add_tcPr()
@@ -1854,20 +1785,17 @@ def export_dispatch_word(rows, title):
 
     for i, x in enumerate(items, 1):
         cells = table.rows[i].cells
-        cust = x["customer"] + (f" ×{x['count']}" if x["count"]>1 else "")
-        date_disp = f"{x['receipt_date']}\n→ {x['late_deadline']}"
-        vals = ["☑" if x["all_done"] else "☐", str(x["idx"]), cust, x["brand_display"],
-                x["spec"], x["supp_teeth"] or "—", x["supp_seats"] or "—",
-                x["fanban"] or "—", x["steel"] or "—", date_disp]
+        vals = ["☑" if x["all_done"] else "☐", str(x["idx"]), x["customer"], str(x["count"]),
+                x["brand_display"], x["spec"], x["supp_teeth"] or "—", x["supp_seats"] or "—",
+                x["fanban"] or "—", x["steel"] or "—", x["date_display"]]
         for j, v in enumerate(vals):
             cell = cells[j]; cell.text = ""
             for line in str(v).split("\n"):
                 p = cell.add_paragraph() if cell.paragraphs[0].text else cell.paragraphs[0]
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 run = p.add_run(line)
-                run.font.size = Pt(10); run.font.name = "微軟正黑體"
-                if j == 2: run.font.bold = True  # 客戶粗體
-                if j == 0: run.font.size = Pt(16)  # 勾選大一點
+                run.font.size = Pt(14); run.font.name = "微軟正黑體"
+                if j in (2, 3): run.font.bold = True
                 run._element.rPr.rFonts.set(qn('w:eastAsia'), '微軟正黑體')
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             if x["all_done"]:
@@ -1879,12 +1807,8 @@ def export_dispatch_word(rows, title):
     doc.add_paragraph()
     sign = doc.add_paragraph()
     sr2 = sign.add_run("廠商簽收:_____________________________   鋸片醫生覆核:_____________________________")
-    sr2.font.size = Pt(11); sr2.font.name = "微軟正黑體"
+    sr2.font.size = Pt(14); sr2.font.name = "微軟正黑體"
     sr2._element.rPr.rFonts.set(qn('w:eastAsia'), '微軟正黑體')
-    note_p = doc.add_paragraph()
-    nr = note_p.add_run("備註 / 異常說明:")
-    nr.font.size = Pt(11); nr.font.bold = True; nr.font.name = "微軟正黑體"
-    nr._element.rPr.rFonts.set(qn('w:eastAsia'), '微軟正黑體')
 
     safe_title = title.replace("/","-").replace(" ","_")
     out = BASE / f"派工清單_{safe_title}_{datetime.now().strftime('%y%m%d%H%M')}.docx"
