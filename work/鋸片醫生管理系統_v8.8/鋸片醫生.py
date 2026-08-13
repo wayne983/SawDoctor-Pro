@@ -181,6 +181,10 @@ class PublishedQuoteOutput:
     path: Path
     file_identity: tuple[int, int]
 
+    def __fspath__(self):
+        """保留安全發布資訊，同時相容既有接受 PathLike 的讀檔介面。"""
+        return os.fspath(self.path)
+
 
 @dataclass(frozen=True)
 class QuoteBatch:
@@ -1479,6 +1483,181 @@ def export_customer_quote_excel(output_dir, batch, lines):
     filename = quote_output_filename(batch.customer, batch.month_range, batch.id, "xlsx")
     output = output_dir / filename
     return publish_quote_output(output, wb.save)
+
+
+def _register_quote_pdf_font():
+    """註冊 Windows 繁中字型；兩個允許的系統字型皆不可用時明確失敗。"""
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    candidates = (
+        ("QuoteMicrosoftJhengHei", Path(r"C:\Windows\Fonts\msjh.ttc")),
+        ("QuoteMingLiU", Path(r"C:\Windows\Fonts\mingliu.ttc")),
+    )
+    errors = []
+    for font_name, font_path in candidates:
+        if not font_path.is_file():
+            errors.append(f"{font_path.name} 不存在")
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont(font_name, str(font_path), subfontIndex=0))
+            return font_name
+        except Exception as error:
+            errors.append(f"{font_path.name} 無法讀取：{error}")
+    raise RuntimeError(
+        "無法匯出繁中 PDF：Microsoft JhengHei 與 MingLiU 系統字型皆不可用（"
+        + "；".join(errors)
+        + "）"
+    )
+
+
+def export_customer_quote_pdf(output_dir, batch, lines):
+    """直接由確認後的報價快照匯出 A4 客戶維修明細 PDF。"""
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
+
+    included_lines = tuple(line for line in lines if line.included)
+    if any(line.customer != batch.customer for line in included_lines):
+        raise ValueError("客戶維修明細不得混用不同客戶的報價列")
+
+    font_name = _register_quote_pdf_font()
+    ordered_lines = sorted(
+        included_lines, key=lambda line: (line.spec, line.brand_id, line.blade_id)
+    )
+    generated_on = datetime.now()
+    output_dir = Path(output_dir)
+    filename = quote_output_filename(batch.customer, batch.month_range, batch.id, "pdf")
+    output = output_dir / filename
+
+    title_style = ParagraphStyle(
+        "QuotePdfTitle",
+        fontName=font_name,
+        fontSize=16,
+        leading=20,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#1A3A5C"),
+        spaceAfter=4 * mm,
+    )
+    meta_style = ParagraphStyle(
+        "QuotePdfMeta",
+        fontName=font_name,
+        fontSize=9,
+        leading=13,
+        alignment=TA_LEFT,
+        textColor=colors.HexColor("#263746"),
+    )
+    header_style = ParagraphStyle(
+        "QuotePdfHeader",
+        fontName=font_name,
+        fontSize=7.5,
+        leading=9,
+        alignment=TA_CENTER,
+        textColor=colors.white,
+    )
+    body_center_style = ParagraphStyle(
+        "QuotePdfBodyCenter",
+        fontName=font_name,
+        fontSize=7.5,
+        leading=10,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#1F2933"),
+    )
+    body_left_style = ParagraphStyle(
+        "QuotePdfBodyLeft",
+        parent=body_center_style,
+        alignment=TA_LEFT,
+    )
+    total_style = ParagraphStyle(
+        "QuotePdfTotal",
+        parent=body_center_style,
+        fontSize=9,
+        leading=12,
+    )
+
+    def paragraph(value, style):
+        from xml.sax.saxutils import escape
+
+        return Paragraph(escape(str(value)).replace("\n", "<br/>"), style)
+
+    def process_value(quantity, unit):
+        if not quantity:
+            return "-"
+        return f"{quantity} x ${unit}"
+
+    headers = ["項次", "規格", "研磨", "補齒", "補座", "反板校正", "小計 NT$", "備註"]
+    table_data = [[paragraph(value, header_style) for value in headers]]
+    for item_number, line in enumerate(ordered_lines, start=1):
+        remark = line.brand_id
+        if line.note.strip():
+            remark += f"\n{line.note.strip()}"
+        table_data.append([
+            paragraph(item_number, body_center_style),
+            paragraph(line.spec, body_center_style),
+            paragraph(process_value(line.grinding_qty, line.grinding_unit), body_center_style),
+            paragraph(process_value(line.tooth_qty, line.tooth_unit), body_center_style),
+            paragraph("-", body_center_style),
+            paragraph(process_value(line.fanban_qty, line.fanban_unit), body_center_style),
+            paragraph(f"{line.subtotal:,}", body_center_style),
+            paragraph(remark, body_left_style),
+        ])
+
+    table_data.append([
+        paragraph("未稅總計", total_style),
+        "",
+        "",
+        "",
+        "",
+        "",
+        paragraph(f"{sum(line.subtotal for line in ordered_lines):,}", total_style),
+        "",
+    ])
+
+    def writer(temporary_path):
+        document = SimpleDocTemplate(
+            str(temporary_path),
+            pagesize=A4,
+            leftMargin=12 * mm,
+            rightMargin=12 * mm,
+            topMargin=12 * mm,
+            bottomMargin=12 * mm,
+            title="鋸片醫生 - 客戶維修明細（未稅）",
+            author="鋸片醫生 Dr.HAWER",
+        )
+        story = [
+            Paragraph("鋸片醫生 - 客戶維修明細（未稅）", title_style),
+            paragraph(
+                f"客戶：{batch.customer}　　報價單號：{batch.id}　　月份範圍：{batch.month_range}",
+                meta_style,
+            ),
+            paragraph(f"產生日期：{generated_on:%Y-%m-%d}　　計價方式：未稅", meta_style),
+            Spacer(1, 4 * mm),
+        ]
+        table = LongTable(
+            table_data,
+            colWidths=[9 * mm, 31 * mm, 16 * mm, 16 * mm, 14 * mm, 19 * mm, 22 * mm, 59 * mm],
+            repeatRows=1,
+            hAlign="CENTER",
+        )
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1A3A5C")),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#718096")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2.5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2.5),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F4F8FB")]),
+            ("SPAN", (0, -1), (5, -1)),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#FFF2CC")),
+        ]))
+        story.append(table)
+        document.build(story)
+
+    return publish_quote_output(output, writer)
 
 
 def save_and_export_customer_quote(
