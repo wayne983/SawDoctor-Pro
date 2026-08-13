@@ -1209,7 +1209,7 @@ def publish_quote_output(target, write_temporary_file):
 
 
 def _quote_output_file_identity(path):
-    """取得發布前暫存檔的身分；Windows 使用卷冊與檔案索引。"""
+    """取得發布前暫存檔的身分；Windows 使用卷冊與 128-bit 檔案 ID。"""
     if os.name == "nt":
         return _windows_file_identity_from_path(path)
     stat_result = Path(path).stat()
@@ -1235,16 +1235,22 @@ def _open_windows_published_output_for_cleanup(published_output):
             published_output.path, access=0x00010000 | 0x80,
             share_mode=0x00000001 | 0x00000002,
         )
-    except FileNotFoundError:
+    except OSError:
+        # 清理階段無法安全開啟目標（含分享或存取衝突）時，保守保留檔案。
         return None
     try:
-        if _windows_file_identity_from_handle(handle) != published_output.file_identity:
-            _close_windows_handle(handle)
-            return None
-        return handle
+        current_identity = _windows_file_identity_from_handle(handle)
+    except OSError:
+        # FileIdInfo 無法讀取時無從證明所有權，不得刪除。
+        _close_windows_handle(handle)
+        return None
     except Exception:
         _close_windows_handle(handle)
         raise
+    if current_identity != published_output.file_identity:
+        _close_windows_handle(handle)
+        return None
+    return handle
 
 
 def _delete_published_quote_output(published_output):
@@ -1287,40 +1293,36 @@ def _open_windows_file_handle(path, *, access, share_mode):
     invalid_handle = ctypes.c_void_p(-1).value
     if handle == invalid_handle:
         error = ctypes.get_last_error()
-        if error in (2, 3):
-            raise FileNotFoundError(error, "找不到報價輸出檔案", str(path))
-        raise OSError(error, "無法開啟報價輸出檔案", str(path))
+        raise ctypes.WinError(error)
     return handle
 
 
 def _windows_file_identity_from_handle(handle):
     import ctypes
-    from ctypes import wintypes
 
-    class ByHandleFileInformation(ctypes.Structure):
+    class FileId128(ctypes.Structure):
         _fields_ = [
-            ("file_attributes", wintypes.DWORD),
-            ("creation_time", wintypes.FILETIME),
-            ("last_access_time", wintypes.FILETIME),
-            ("last_write_time", wintypes.FILETIME),
-            ("volume_serial_number", wintypes.DWORD),
-            ("file_size_high", wintypes.DWORD),
-            ("file_size_low", wintypes.DWORD),
-            ("number_of_links", wintypes.DWORD),
-            ("file_index_high", wintypes.DWORD),
-            ("file_index_low", wintypes.DWORD),
+            ("identifier", ctypes.c_ubyte * 16),
+        ]
+
+    class FileIdInfo(ctypes.Structure):
+        _fields_ = [
+            ("volume_serial_number", ctypes.c_ulonglong),
+            ("file_id", FileId128),
         ]
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    get_information = kernel32.GetFileInformationByHandle
-    get_information.argtypes = [ctypes.c_void_p, ctypes.POINTER(ByHandleFileInformation)]
+    get_information = kernel32.GetFileInformationByHandleEx
+    get_information.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_ulong]
     get_information.restype = ctypes.c_int
-    information = ByHandleFileInformation()
-    if not get_information(handle, ctypes.byref(information)):
-        raise OSError(ctypes.get_last_error(), "無法讀取報價輸出檔案身分")
+    information = FileIdInfo()
+    if not get_information(
+        handle, 18, ctypes.byref(information), ctypes.sizeof(information)
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
     return (
         information.volume_serial_number,
-        (information.file_index_high << 32) | information.file_index_low,
+        bytes(information.file_id.identifier),
     )
 
 

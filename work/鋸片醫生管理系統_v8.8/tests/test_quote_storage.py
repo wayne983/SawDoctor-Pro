@@ -216,6 +216,31 @@ class QuoteStorageTests(unittest.TestCase):
                 conn.close()
 
     @unittest.skipUnless(os.name == "nt", "Windows 檔案分享鎖定測試")
+    def test_windows_file_identity_uses_volume_and_all_16_file_id_bytes(self):
+        with TemporaryDirectory() as directory:
+            target = Path(directory) / "quote.xlsx"
+            hard_link = Path(directory) / "quote-link.xlsx"
+            target.write_bytes(b"transaction workbook")
+            os.link(target, hard_link)
+
+            target_identity = app._windows_file_identity_from_path(target)
+            hard_link_identity = app._windows_file_identity_from_path(hard_link)
+
+            self.assertEqual(target_identity, hard_link_identity)
+            self.assertIsInstance(target_identity[0], int)
+            self.assertIsInstance(target_identity[1], bytes)
+            self.assertEqual(len(target_identity[1]), 16)
+
+            changed_last_byte = target_identity[1][:-1] + bytes(
+                [target_identity[1][-1] ^ 0xFF]
+            )
+            wrong_identity = app.PublishedQuoteOutput(
+                target, (target_identity[0], changed_last_byte)
+            )
+            self.assertFalse(app._delete_published_quote_output(wrong_identity))
+            self.assertEqual(target.read_bytes(), b"transaction workbook")
+
+    @unittest.skipUnless(os.name == "nt", "Windows 檔案分享鎖定測試")
     def test_windows_cleanup_handle_blocks_replacement_after_identity_check(self):
         with TemporaryDirectory() as directory:
             target = Path(directory) / "quote.xlsx"
@@ -231,6 +256,52 @@ class QuoteStorageTests(unittest.TestCase):
                 if handle is not None:
                     app._close_windows_handle(handle)
             target.unlink()
+
+    @unittest.skipUnless(os.name == "nt", "Windows 檔案分享鎖定測試")
+    def test_cleanup_sharing_violation_keeps_original_export_failure(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            output_dir = Path(directory) / "output"
+            fixed_now = datetime(2026, 8, 13, 9, 30)
+            blocking_handles = []
+            try:
+                app.ensure_quote_schema(conn)
+
+                def failing_pdf_with_locked_excel(target_dir, batch, lines):
+                    excel_target = Path(target_dir) / app.quote_output_filename(
+                        batch.customer, batch.month_range, batch.id, "xlsx"
+                    )
+                    blocking_handles.append(app._open_windows_file_handle(
+                        excel_target,
+                        access=0x80000000,
+                        share_mode=0x00000001 | 0x00000002,
+                    ))
+                    raise RuntimeError("original PDF export failure")
+
+                with self.assertRaisesRegex(RuntimeError, "original PDF export failure"):
+                    app.save_and_export_customer_quote(
+                        conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                        quote_date=date(2026, 8, 13), output_formats=("xlsx", "pdf"),
+                        exporters={
+                            "xlsx": successful_excel_exporter,
+                            "pdf": failing_pdf_with_locked_excel,
+                        },
+                        now=fixed_now,
+                    )
+
+                self.assertEqual(count_batches(conn), 0)
+                for handle in blocking_handles:
+                    app._close_windows_handle(handle)
+                blocking_handles.clear()
+                excel_target = output_dir / app.quote_output_filename(
+                    "甲", "2026-08", "Q-260813-001", "xlsx"
+                )
+                self.assertEqual(excel_target.read_bytes(), b"xlsx")
+            finally:
+                for handle in blocking_handles:
+                    app._close_windows_handle(handle)
+                conn.close()
 
     def test_atomic_quote_success_commits_snapshot_matching_final_workbook_name(self):
         with TemporaryDirectory() as directory:
