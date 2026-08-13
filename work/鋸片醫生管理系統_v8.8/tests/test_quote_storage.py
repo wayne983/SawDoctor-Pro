@@ -70,6 +70,12 @@ def successful_excel_exporter(target_dir, batch, lines):
 
 
 class QuoteStorageTests(unittest.TestCase):
+    def test_quote_confirmation_size_fits_1147_pixel_wide_screen(self):
+        width, height = app.quote_confirmation_dialog_size(1147, 768)
+
+        self.assertEqual(width, 1123)
+        self.assertEqual(height, 650)
+
     def test_open_failure_reports_generated_files_without_raising(self):
         outputs = {
             "xlsx": Path("客戶維修明細_甲.xlsx"),

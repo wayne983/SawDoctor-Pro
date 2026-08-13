@@ -354,6 +354,14 @@ def quote_primary_open_format(formats):
     return "pdf" if "pdf" in formats else "xlsx"
 
 
+def quote_confirmation_dialog_size(screen_width, screen_height):
+    """回傳不超出目前螢幕可用範圍的報價確認視窗尺寸。"""
+    return (
+        max(1, min(1180, int(screen_width) - 24)),
+        max(1, min(650, int(screen_height) - 80)),
+    )
+
+
 def open_generated_quote_output(outputs, output_formats, opener=None):
     """嘗試開啟已提交的報價；開啟失敗只回傳成功產檔後的提示。"""
     primary_output = outputs[quote_primary_open_format(output_formats)]
@@ -3047,7 +3055,10 @@ class App:
         """人工確認報價草稿；所有調整只存在於本次快照，不回寫鋸片資料。"""
         dialog = tk.Toplevel(self.root)
         dialog.title(f"客戶維修報價確認：{customer}")
-        dialog.geometry("1180x650")
+        dialog_width, dialog_height = quote_confirmation_dialog_size(
+            dialog.winfo_screenwidth(), dialog.winfo_screenheight()
+        )
+        dialog.geometry(f"{dialog_width}x{dialog_height}")
         dialog.transient(self.root)
 
         quote_date = date.today()
@@ -3064,14 +3075,33 @@ class App:
         ttk.Label(dialog, text="可調整數量、單價與備註；紅色『待人工填價』未完成前不能產生報價檔。",
                   foreground="#a00000").pack(pady=(0, 8))
 
-        canvas = tk.Canvas(dialog, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
+        total_var = tk.StringVar(value="未稅總計：NT$ 0")
+        footer = ttk.Frame(dialog)
+        footer.pack(side="bottom", fill="x", padx=12, pady=10)
+        ttk.Label(footer, textvariable=total_var, font=("Microsoft JhengHei", 12, "bold")).pack(side="left")
+        output_format_var = tk.StringVar(value="Excel（.xlsx）")
+        output_format_options = {
+            "Excel（.xlsx）": ("xlsx",),
+            "PDF（A4）": ("pdf",),
+            "Excel＋PDF": ("xlsx", "pdf"),
+        }
+        ttk.Label(footer, text="輸出格式：").pack(side="left", padx=(24, 2))
+        ttk.Combobox(
+            footer, textvariable=output_format_var,
+            values=tuple(output_format_options), state="readonly", width=16,
+        ).pack(side="left")
+        confirm_button = ttk.Button(footer, text="產生客戶維修報價")
+
+        table_host = ttk.Frame(dialog)
+        table_host.pack(fill="both", expand=True, padx=10)
+        canvas = tk.Canvas(table_host, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(table_host, orient="vertical", command=canvas.yview)
         content = ttk.Frame(canvas)
         content.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=content, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
-        canvas.pack(side="left", fill="both", expand=True, padx=(10, 0))
-        scrollbar.pack(side="right", fill="y", padx=(0, 10))
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
         headers = ["列入", "編號 / 規格 / 原工序", "研磨\n數量", "研磨\n單價", "補齒\n數量", "補齒\n單價", "反板\n數量", "反板\n單價", "小計", "備註 / 狀態"]
         for column, header in enumerate(headers):
@@ -3079,9 +3109,6 @@ class App:
                 row=0, column=column, sticky="nsew")
         for column, width in enumerate((6, 35, 7, 8, 7, 8, 7, 8, 10, 25)):
             content.columnconfigure(column, minsize=width * 7)
-
-        total_var = tk.StringVar(value="未稅總計：NT$ 0")
-        confirm_button = ttk.Button(dialog, text="產生客戶維修報價")
 
         def make_line(item):
             try:
@@ -3153,20 +3180,6 @@ class App:
             item["status_label"].pack(anchor="w")
             state_rows.append(item)
 
-        footer = ttk.Frame(dialog); footer.pack(fill="x", padx=12, pady=10)
-        ttk.Label(footer, textvariable=total_var, font=("Microsoft JhengHei", 12, "bold")).pack(side="left")
-        output_format_var = tk.StringVar(value="Excel（.xlsx）")
-        output_format_options = {
-            "Excel（.xlsx）": ("xlsx",),
-            "PDF（A4）": ("pdf",),
-            "Excel＋PDF": ("xlsx", "pdf"),
-        }
-        ttk.Label(footer, text="輸出格式：").pack(side="left", padx=(24, 2))
-        ttk.Combobox(
-            footer, textvariable=output_format_var,
-            values=tuple(output_format_options), state="readonly", width=16,
-        ).pack(side="left")
-
         def confirm():
             refresh()
             included = [item["draft"] for item in state_rows if item["included"].get()]
@@ -3205,7 +3218,7 @@ class App:
                 )
 
         confirm_button.configure(command=confirm)
-        confirm_button.pack(in_=footer, side="right")
+        confirm_button.pack(side="right")
         refresh()
 
     # ── 設定 ─────────────────────────────────────────────────
