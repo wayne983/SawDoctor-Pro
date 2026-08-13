@@ -174,6 +174,19 @@ class QuoteCollisionError(RuntimeError):
     """報價批次編號衝突，避免覆蓋既有快照。"""
 
 
+class QuoteRollbackWarning(RuntimeError):
+    """資料庫已回滾，但仍有無法安全清理的輸出路徑。"""
+
+    def __init__(self, remaining_paths):
+        self.remaining_paths = tuple(Path(path) for path in remaining_paths)
+        path_list = "\n".join(f"- {path}" for path in self.remaining_paths)
+        super().__init__(
+            "報價資料未儲存，但不完整的輸出檔案可能仍存在。"
+            "請確認內容後手動刪除本次產生的檔案；若路徑已被其他檔案取代，請勿刪除：\n"
+            + path_list
+        )
+
+
 @dataclass(frozen=True)
 class PublishedQuoteOutput:
     """由安全發布器建立、可在交易失敗時確定清理的輸出檔案。"""
@@ -339,6 +352,25 @@ def _normalise_quote_output_formats(output_formats):
 def quote_primary_open_format(formats):
     """回傳成功後應開啟的主要報價格式；雙檔時以 PDF 為主。"""
     return "pdf" if "pdf" in formats else "xlsx"
+
+
+def open_generated_quote_output(outputs, output_formats, opener=None):
+    """嘗試開啟已提交的報價；開啟失敗只回傳成功產檔後的提示。"""
+    primary_output = outputs[quote_primary_open_format(output_formats)]
+    if opener is None:
+        opener = getattr(os, "startfile", None) if os.name == "nt" else None
+    if opener is None:
+        return None
+    try:
+        opener(str(primary_output))
+    except Exception as error:
+        filenames = "、".join(Path(path).name for path in outputs.values())
+        return (
+            f"報價檔已成功產生：{filenames}\n"
+            f"但無法自動開啟 {Path(primary_output).name}：{error}\n"
+            "請到輸出資料夾手動開啟。"
+        )
+    return None
 
 
 def quote_line_from_blade(blade, rules):
@@ -1675,6 +1707,7 @@ def save_and_export_customer_quote(
     formats = _normalise_quote_output_formats(output_formats)
     exporters = dict(exporters or {})
     exporters.setdefault("xlsx", export_customer_quote_excel)
+    exporters.setdefault("pdf", export_customer_quote_pdf)
     missing_formats = [output_format for output_format in formats if output_format not in exporters]
     if missing_formats:
         raise ValueError(f"缺少報價輸出器：{', '.join(missing_formats)}")
@@ -1727,11 +1760,19 @@ def save_and_export_customer_quote(
             conn.rollback()
             raise RuntimeError("資料庫提交失敗，報價快照與 Excel 已取消") from error
         return batch, outputs
-    except Exception:
+    except Exception as error:
         if conn.in_transaction:
             conn.rollback()
+        remaining_paths = []
         for created_output in created_outputs:
-            _delete_published_quote_output(created_output)
+            try:
+                deleted = _delete_published_quote_output(created_output)
+            except Exception:
+                deleted = False
+            if not deleted:
+                remaining_paths.append(created_output.path)
+        if remaining_paths:
+            raise QuoteRollbackWarning(remaining_paths) from error
         raise
 
 
@@ -3142,17 +3183,26 @@ class App:
                         conn, output_dir, customer, months, included, "鋸片醫生",
                         quote_date=quote_date, output_formats=output_formats,
                     )
-                output = outputs[quote_primary_open_format(output_formats)]
-                if os.name == "nt" and hasattr(os, "startfile"): os.startfile(str(output))
-                self.log(
-                    f"✅ 客戶維修報價已輸出（{selected_output_label}）："
-                    + "、".join(path.name for path in outputs.values())
-                )
-                dialog.destroy()
             except ImportError as error:
                 messagebox.showerror("缺少套件", f"產生 {selected_output_label} 需要的套件不可用：\n{error}", parent=dialog)
+                return
+            except QuoteRollbackWarning as warning:
+                messagebox.showerror("報價未儲存，檔案需確認", str(warning), parent=dialog)
+                return
             except Exception as error:
                 messagebox.showerror("產生失敗", f"產生 {selected_output_label} 失敗：\n{error}", parent=dialog)
+                return
+
+            self.log(
+                f"✅ 客戶維修報價已輸出（{selected_output_label}）："
+                + "、".join(path.name for path in outputs.values())
+            )
+            dialog.destroy()
+            open_warning = open_generated_quote_output(outputs, output_formats)
+            if open_warning:
+                messagebox.showwarning(
+                    "報價已產生，但無法自動開啟", open_warning, parent=self.root
+                )
 
         confirm_button.configure(command=confirm)
         confirm_button.pack(in_=footer, side="right")

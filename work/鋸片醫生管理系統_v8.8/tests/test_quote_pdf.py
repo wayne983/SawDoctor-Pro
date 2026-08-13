@@ -1,7 +1,8 @@
 import importlib.util
+import sqlite3
 import sys
 import unittest
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -82,6 +83,43 @@ def pdf_page_count(path):
 
 
 class QuotePdfTests(unittest.TestCase):
+    def test_production_coordinator_uses_default_pdf_exporter_and_commits(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            output_dir = Path(directory) / "output"
+            try:
+                app.ensure_quote_schema(conn)
+
+                saved_batch, outputs = app.save_and_export_customer_quote(
+                    conn,
+                    output_dir,
+                    "甲",
+                    [(2026, 8)],
+                    [confirmed_line(0)],
+                    "測試人員",
+                    quote_date=date(2026, 8, 13),
+                    output_formats=("pdf",),
+                    now=datetime(2026, 8, 13, 9, 30),
+                )
+
+                output = outputs["pdf"]
+                self.assertEqual(output.suffix, ".pdf")
+                self.assertGreaterEqual(len(PdfReader(output).pages), 1)
+                self.assertEqual(
+                    tuple(conn.execute(
+                        "SELECT format, filename FROM quote_output_files WHERE batch_id = ?",
+                        (saved_batch.id,),
+                    ).fetchone()),
+                    ("pdf", output.name),
+                )
+                self.assertEqual(
+                    conn.execute("SELECT COUNT(*) FROM quote_batches").fetchone()[0], 1
+                )
+                self.assertFalse(conn.in_transaction)
+            finally:
+                conn.close()
+
     def test_pdf_keeps_every_blade_and_untaxed_total(self):
         with TemporaryDirectory() as directory:
             output = app.export_customer_quote_pdf(

@@ -6,6 +6,7 @@ import unittest
 from datetime import date, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +70,24 @@ def successful_excel_exporter(target_dir, batch, lines):
 
 
 class QuoteStorageTests(unittest.TestCase):
+    def test_open_failure_reports_generated_files_without_raising(self):
+        outputs = {
+            "xlsx": Path("客戶維修明細_甲.xlsx"),
+            "pdf": Path("客戶維修明細_甲.pdf"),
+        }
+
+        def failing_opener(_path):
+            raise OSError("no associated application")
+
+        warning = app.open_generated_quote_output(
+            outputs, ("xlsx", "pdf"), opener=failing_opener
+        )
+
+        self.assertIn("已成功產生", warning)
+        self.assertIn("客戶維修明細_甲.xlsx", warning)
+        self.assertIn("客戶維修明細_甲.pdf", warning)
+        self.assertIn("無法自動開啟", warning)
+
     def test_primary_open_format_prefers_pdf_only_for_dual_output(self):
         self.assertEqual(app.quote_primary_open_format(("xlsx",)), "xlsx")
         self.assertEqual(app.quote_primary_open_format(("pdf",)), "pdf")
@@ -141,6 +160,49 @@ class QuoteStorageTests(unittest.TestCase):
             finally:
                 conn.close()
 
+    def test_cleanup_failure_raises_warning_with_remaining_path_after_rollback(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            output_dir = Path(directory) / "output"
+            fixed_now = datetime(2026, 8, 13, 9, 30)
+            try:
+                app.ensure_quote_schema(conn)
+
+                def failing_pdf(_target_dir, _batch, _lines):
+                    raise RuntimeError("original PDF export failure")
+
+                with patch.object(app, "_delete_published_quote_output", return_value=False):
+                    with self.assertRaises(app.QuoteRollbackWarning) as raised:
+                        app.save_and_export_customer_quote(
+                            conn,
+                            output_dir,
+                            "甲",
+                            [(2026, 8)],
+                            [confirmed_305_line()],
+                            "技師甲",
+                            quote_date=date(2026, 8, 13),
+                            output_formats=("xlsx", "pdf"),
+                            exporters={
+                                "xlsx": successful_excel_exporter,
+                                "pdf": failing_pdf,
+                            },
+                            now=fixed_now,
+                        )
+
+                remaining = output_dir / app.quote_output_filename(
+                    "甲", "2026-08", "Q-260813-001", "xlsx"
+                )
+                self.assertEqual(raised.exception.remaining_paths, (remaining,))
+                self.assertIsInstance(raised.exception.__cause__, RuntimeError)
+                self.assertIn("original PDF export failure", str(raised.exception.__cause__))
+                self.assertIn(str(remaining), str(raised.exception))
+                self.assertEqual(count_batches(conn), 0)
+                self.assertFalse(conn.in_transaction)
+                self.assertEqual(remaining.read_bytes(), b"xlsx")
+            finally:
+                conn.close()
+
     def test_collision_created_during_export_is_preserved(self):
         with TemporaryDirectory() as directory:
             conn = sqlite3.connect(Path(directory) / "quote.db")
@@ -203,7 +265,7 @@ class QuoteStorageTests(unittest.TestCase):
                         raise RuntimeError("forced PDF failure after replacement")
                     return app.publish_quote_output(pdf_target, fail_after_temporary_write)
 
-                with self.assertRaisesRegex(RuntimeError, "forced PDF failure after replacement"):
+                with self.assertRaises(app.QuoteRollbackWarning) as raised:
                     app.save_and_export_customer_quote(
                         conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
                         quote_date=date(2026, 8, 13), output_formats=("xlsx", "pdf"),
@@ -215,6 +277,10 @@ class QuoteStorageTests(unittest.TestCase):
                     )
 
                 target = output_dir / app.quote_output_filename("甲", "2026-08", "Q-260813-001")
+                self.assertEqual(raised.exception.remaining_paths, (target,))
+                self.assertIn(
+                    "forced PDF failure after replacement", str(raised.exception.__cause__)
+                )
                 self.assertEqual(target.read_bytes(), b"external replacement")
                 self.assertEqual(count_batches(conn), 0)
             finally:
@@ -263,7 +329,7 @@ class QuoteStorageTests(unittest.TestCase):
             target.unlink()
 
     @unittest.skipUnless(os.name == "nt", "Windows 檔案分享鎖定測試")
-    def test_cleanup_sharing_violation_keeps_original_export_failure(self):
+    def test_cleanup_sharing_violation_warns_with_original_export_failure_as_cause(self):
         with TemporaryDirectory() as directory:
             conn = sqlite3.connect(Path(directory) / "quote.db")
             conn.row_factory = sqlite3.Row
@@ -284,7 +350,7 @@ class QuoteStorageTests(unittest.TestCase):
                     ))
                     raise RuntimeError("original PDF export failure")
 
-                with self.assertRaisesRegex(RuntimeError, "original PDF export failure"):
+                with self.assertRaises(app.QuoteRollbackWarning) as raised:
                     app.save_and_export_customer_quote(
                         conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
                         quote_date=date(2026, 8, 13), output_formats=("xlsx", "pdf"),
@@ -302,6 +368,8 @@ class QuoteStorageTests(unittest.TestCase):
                 excel_target = output_dir / app.quote_output_filename(
                     "甲", "2026-08", "Q-260813-001", "xlsx"
                 )
+                self.assertEqual(raised.exception.remaining_paths, (excel_target,))
+                self.assertIn("original PDF export failure", str(raised.exception.__cause__))
                 self.assertEqual(excel_target.read_bytes(), b"xlsx")
             finally:
                 for handle in blocking_handles:
