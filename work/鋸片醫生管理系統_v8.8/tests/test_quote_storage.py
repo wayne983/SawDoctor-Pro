@@ -166,6 +166,54 @@ class QuoteStorageTests(unittest.TestCase):
             finally:
                 conn.close()
 
+    def test_replacement_after_successful_publish_is_preserved_on_later_failure(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            output_dir = Path(directory) / "output"
+            fixed_now = datetime(2026, 8, 13, 9, 30)
+            try:
+                app.ensure_quote_schema(conn)
+
+                def successful_excel(target_dir, batch, lines):
+                    output = Path(target_dir) / app.quote_output_filename(
+                        batch.customer, batch.month_range, batch.id, "xlsx"
+                    )
+                    return app.publish_quote_output(
+                        output, lambda temporary: temporary.write_bytes(b"transaction workbook")
+                    )
+
+                def failing_pdf_after_external_replacement(target_dir, batch, lines):
+                    excel_target = Path(target_dir) / app.quote_output_filename(
+                        batch.customer, batch.month_range, batch.id, "xlsx"
+                    )
+                    excel_target.unlink()
+                    excel_target.write_bytes(b"external replacement")
+                    pdf_target = Path(target_dir) / app.quote_output_filename(
+                        batch.customer, batch.month_range, batch.id, "pdf"
+                    )
+                    def fail_after_temporary_write(temporary):
+                        temporary.write_bytes(b"partial pdf")
+                        raise RuntimeError("forced PDF failure after replacement")
+                    return app.publish_quote_output(pdf_target, fail_after_temporary_write)
+
+                with self.assertRaisesRegex(RuntimeError, "forced PDF failure after replacement"):
+                    app.save_and_export_customer_quote(
+                        conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                        quote_date=date(2026, 8, 13), output_formats=("xlsx", "pdf"),
+                        exporters={
+                            "xlsx": successful_excel,
+                            "pdf": failing_pdf_after_external_replacement,
+                        },
+                        now=fixed_now,
+                    )
+
+                target = output_dir / app.quote_output_filename("甲", "2026-08", "Q-260813-001")
+                self.assertEqual(target.read_bytes(), b"external replacement")
+                self.assertEqual(count_batches(conn), 0)
+            finally:
+                conn.close()
+
     def test_atomic_quote_success_commits_snapshot_matching_final_workbook_name(self):
         with TemporaryDirectory() as directory:
             conn = sqlite3.connect(Path(directory) / "quote.db")

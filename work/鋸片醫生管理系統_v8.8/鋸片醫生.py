@@ -179,6 +179,15 @@ class PublishedQuoteOutput:
     """由安全發布器建立、可在交易失敗時確定清理的輸出檔案。"""
 
     path: Path
+    file_identity: tuple[int, int]
+
+    def is_current_publication(self):
+        """目標路徑仍指向本交易發布的同一個檔案時才允許清理。"""
+        try:
+            current = self.path.stat()
+        except FileNotFoundError:
+            return False
+        return (current.st_dev, current.st_ino) == self.file_identity
 
 
 @dataclass(frozen=True)
@@ -1200,7 +1209,8 @@ def publish_quote_output(target, write_temporary_file):
             os.link(temporary, target)
         except FileExistsError as error:
             raise QuoteCollisionError(f"報價單號的輸出檔案已存在：{target.name}") from error
-        return PublishedQuoteOutput(target)
+        published = target.stat()
+        return PublishedQuoteOutput(target, (published.st_dev, published.st_ino))
     finally:
         if temporary.exists():
             temporary.unlink()
@@ -1367,7 +1377,7 @@ def save_and_export_customer_quote(
     now = now or datetime.now()
     output_dir = Path(output_dir)
     targets = {}
-    created_paths = set()
+    created_outputs = []
     conn.execute("BEGIN IMMEDIATE")
     try:
         batch_id = preview_quote_batch_id(conn, now)
@@ -1401,7 +1411,7 @@ def save_and_export_customer_quote(
             output = published_output.path
             if output.resolve() != target.resolve() or not target.is_file():
                 raise RuntimeError(f"{output_format.upper()} 匯出未產生預期的報價檔案")
-            created_paths.add(target)
+            created_outputs.append(published_output)
             outputs[output_format] = target
             conn.execute(
                 "INSERT INTO quote_output_files(batch_id, format, filename, created_at) VALUES (?, ?, ?, ?)",
@@ -1416,9 +1426,9 @@ def save_and_export_customer_quote(
     except Exception:
         if conn.in_transaction:
             conn.rollback()
-        for created_path in created_paths:
-            if created_path.exists():
-                created_path.unlink()
+        for created_output in created_outputs:
+            if created_output.is_current_publication():
+                created_output.path.unlink()
         raise
 
 
