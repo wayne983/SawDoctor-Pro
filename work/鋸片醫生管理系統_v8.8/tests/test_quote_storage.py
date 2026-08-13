@@ -69,6 +69,11 @@ def successful_excel_exporter(target_dir, batch, lines):
 
 
 class QuoteStorageTests(unittest.TestCase):
+    def test_primary_open_format_prefers_pdf_only_for_dual_output(self):
+        self.assertEqual(app.quote_primary_open_format(("xlsx",)), "xlsx")
+        self.assertEqual(app.quote_primary_open_format(("pdf",)), "pdf")
+        self.assertEqual(app.quote_primary_open_format(("xlsx", "pdf")), "pdf")
+
     def test_pdf_only_records_pdf_and_keeps_legacy_output_file(self):
         with TemporaryDirectory() as directory:
             conn = sqlite3.connect(Path(directory) / "quote.db")

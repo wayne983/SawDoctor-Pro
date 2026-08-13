@@ -336,6 +336,11 @@ def _normalise_quote_output_formats(output_formats):
     return formats
 
 
+def quote_primary_open_format(formats):
+    """回傳成功後應開啟的主要報價格式；雙檔時以 PDF 為主。"""
+    return "pdf" if "pdf" in formats else "xlsx"
+
+
 def quote_line_from_blade(blade, rules):
     """以目前生效價目建立草稿；無規則時保留為待人工填價。"""
     od = str(blade["od"] or "")
@@ -3015,7 +3020,7 @@ class App:
 
         ttk.Label(dialog, text=f"客戶：{customer}　月份：{_quote_month_range(months)}　未稅",
                   font=("Microsoft JhengHei", 12, "bold")).pack(pady=(10, 4))
-        ttk.Label(dialog, text="可調整數量、單價與備註；紅色『待人工填價』未完成前不能產生 Excel。",
+        ttk.Label(dialog, text="可調整數量、單價與備註；紅色『待人工填價』未完成前不能產生報價檔。",
                   foreground="#a00000").pack(pady=(0, 8))
 
         canvas = tk.Canvas(dialog, highlightthickness=0)
@@ -3035,7 +3040,7 @@ class App:
             content.columnconfigure(column, minsize=width * 7)
 
         total_var = tk.StringVar(value="未稅總計：NT$ 0")
-        confirm_button = ttk.Button(dialog, text="產生客戶維修報價明細 Excel")
+        confirm_button = ttk.Button(dialog, text="產生客戶維修報價")
 
         def make_line(item):
             try:
@@ -3109,6 +3114,17 @@ class App:
 
         footer = ttk.Frame(dialog); footer.pack(fill="x", padx=12, pady=10)
         ttk.Label(footer, textvariable=total_var, font=("Microsoft JhengHei", 12, "bold")).pack(side="left")
+        output_format_var = tk.StringVar(value="Excel（.xlsx）")
+        output_format_options = {
+            "Excel（.xlsx）": ("xlsx",),
+            "PDF（A4）": ("pdf",),
+            "Excel＋PDF": ("xlsx", "pdf"),
+        }
+        ttk.Label(footer, text="輸出格式：").pack(side="left", padx=(24, 2))
+        ttk.Combobox(
+            footer, textvariable=output_format_var,
+            values=tuple(output_format_options), state="readonly", width=16,
+        ).pack(side="left")
 
         def confirm():
             refresh()
@@ -3118,20 +3134,25 @@ class App:
             if any(line.customer != customer for line in included):
                 messagebox.showerror("資料錯誤", "報價明細不得混用不同客戶。", parent=dialog); return
             output_dir = BASE / "客戶維修報價"
+            selected_output_label = output_format_var.get()
+            output_formats = output_format_options[selected_output_label]
             try:
                 with get_db() as conn:
                     _batch, outputs = save_and_export_customer_quote(
                         conn, output_dir, customer, months, included, "鋸片醫生",
-                        quote_date=quote_date,
+                        quote_date=quote_date, output_formats=output_formats,
                     )
-                output = outputs.get("xlsx") or outputs.get("pdf")
+                output = outputs[quote_primary_open_format(output_formats)]
                 if os.name == "nt" and hasattr(os, "startfile"): os.startfile(str(output))
-                self.log(f"✅ 客戶維修報價明細已輸出: {output.name}")
+                self.log(
+                    f"✅ 客戶維修報價已輸出（{selected_output_label}）："
+                    + "、".join(path.name for path in outputs.values())
+                )
                 dialog.destroy()
             except ImportError as error:
-                messagebox.showerror("缺少套件", f"需要安裝 openpyxl：\n{error}", parent=dialog)
+                messagebox.showerror("缺少套件", f"產生 {selected_output_label} 需要的套件不可用：\n{error}", parent=dialog)
             except Exception as error:
-                messagebox.showerror("產生失敗", str(error), parent=dialog)
+                messagebox.showerror("產生失敗", f"產生 {selected_output_label} 失敗：\n{error}", parent=dialog)
 
         confirm_button.configure(command=confirm)
         confirm_button.pack(in_=footer, side="right")
