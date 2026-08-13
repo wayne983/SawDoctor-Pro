@@ -64,9 +64,7 @@ def successful_excel_exporter(target_dir, batch, lines):
     output = Path(target_dir) / app.quote_output_filename(
         batch.customer, batch.month_range, batch.id, "xlsx"
     )
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_bytes(b"xlsx")
-    return output
+    return app.publish_quote_output(output, lambda temporary: temporary.write_bytes(b"xlsx"))
 
 
 class QuoteStorageTests(unittest.TestCase):
@@ -83,9 +81,9 @@ class QuoteStorageTests(unittest.TestCase):
                     output = Path(target_dir) / app.quote_output_filename(
                         batch.customer, batch.month_range, batch.id, "pdf"
                     )
-                    output.parent.mkdir(parents=True, exist_ok=True)
-                    output.write_bytes(b"pdf")
-                    return output
+                    return app.publish_quote_output(
+                        output, lambda temporary: temporary.write_bytes(b"pdf")
+                    )
 
                 batch, outputs = app.save_and_export_customer_quote(
                     conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
@@ -112,17 +110,18 @@ class QuoteStorageTests(unittest.TestCase):
                     output = Path(target_dir) / app.quote_output_filename(
                         batch.customer, batch.month_range, batch.id, "xlsx"
                     )
-                    output.parent.mkdir(parents=True, exist_ok=True)
-                    output.write_bytes(b"xlsx")
-                    return output
+                    return app.publish_quote_output(
+                        output, lambda temporary: temporary.write_bytes(b"xlsx")
+                    )
 
                 def failing_pdf(target_dir, batch, lines):
                     output = Path(target_dir) / app.quote_output_filename(
                         batch.customer, batch.month_range, batch.id, "pdf"
                     )
-                    output.parent.mkdir(parents=True, exist_ok=True)
-                    output.write_bytes(b"partial pdf")
-                    raise RuntimeError("forced PDF export failure")
+                    def write_partial_pdf(temporary):
+                        temporary.write_bytes(b"partial pdf")
+                        raise RuntimeError("forced PDF export failure")
+                    return app.publish_quote_output(output, write_partial_pdf)
 
                 with self.assertRaisesRegex(RuntimeError, "forced PDF export failure"):
                     app.save_and_export_customer_quote(
@@ -133,6 +132,37 @@ class QuoteStorageTests(unittest.TestCase):
 
                 self.assertEqual(count_batches(conn), 0)
                 self.assertEqual(list(output_dir.glob("*")), [])
+            finally:
+                conn.close()
+
+    def test_collision_created_during_export_is_preserved(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            output_dir = Path(directory) / "output"
+            fixed_now = datetime(2026, 8, 13, 9, 30)
+            try:
+                app.ensure_quote_schema(conn)
+
+                def exporter_with_external_collision(target_dir, batch, lines):
+                    target = Path(target_dir) / app.quote_output_filename(
+                        batch.customer, batch.month_range, batch.id, "xlsx"
+                    )
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with target.open("xb") as collision_file:
+                        collision_file.write(b"external workbook")
+                    raise RuntimeError("external exporter stopped")
+
+                with self.assertRaisesRegex(RuntimeError, "external exporter stopped"):
+                    app.save_and_export_customer_quote(
+                        conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                        quote_date=date(2026, 8, 13), now=fixed_now,
+                        exporters={"xlsx": exporter_with_external_collision},
+                    )
+
+                target = output_dir / app.quote_output_filename("甲", "2026-08", "Q-260813-001")
+                self.assertEqual(target.read_bytes(), b"external workbook")
+                self.assertEqual(count_batches(conn), 0)
             finally:
                 conn.close()
 
@@ -199,9 +229,10 @@ class QuoteStorageTests(unittest.TestCase):
                     target = Path(target_dir) / app.quote_output_filename(
                         batch.customer, batch.month_range, batch.id
                     )
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(b"partial workbook")
-                    raise RuntimeError("forced export failure")
+                    def write_partial_workbook(temporary):
+                        temporary.write_bytes(b"partial workbook")
+                        raise RuntimeError("forced export failure")
+                    return app.publish_quote_output(target, write_partial_workbook)
 
                 with self.assertRaisesRegex(RuntimeError, "forced export failure"):
                     app.save_and_export_customer_quote(

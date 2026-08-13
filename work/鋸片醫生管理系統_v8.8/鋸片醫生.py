@@ -175,6 +175,13 @@ class QuoteCollisionError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class PublishedQuoteOutput:
+    """由安全發布器建立、可在交易失敗時確定清理的輸出檔案。"""
+
+    path: Path
+
+
+@dataclass(frozen=True)
 class QuoteBatch:
     id: str
     customer: str
@@ -1176,6 +1183,29 @@ def _safe_quote_filename_component(value):
     return cleaned or "未命名客戶"
 
 
+def publish_quote_output(target, write_temporary_file):
+    """以暫存檔與不覆寫的目標建立，安全發布一個報價輸出檔案。"""
+    target = Path(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{target.stem}.", suffix=".tmp", dir=target.parent,
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        write_temporary_file(temporary)
+        if not temporary.is_file():
+            raise RuntimeError("報價匯出未產生暫存檔案")
+        try:
+            os.link(temporary, target)
+        except FileExistsError as error:
+            raise QuoteCollisionError(f"報價單號的輸出檔案已存在：{target.name}") from error
+        return PublishedQuoteOutput(target)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
 def export_customer_quote_excel(output_dir, batch, lines):
     """匯出客戶維修明細；每支鋸片維持一列，不合併報價金額。"""
     from itertools import groupby
@@ -1318,10 +1348,7 @@ def export_customer_quote_excel(output_dir, batch, lines):
 
     filename = quote_output_filename(batch.customer, batch.month_range, batch.id, "xlsx")
     output = output_dir / filename
-    if output.exists():
-        raise QuoteCollisionError(f"報價單號 {batch.id} 的客戶維修明細已存在，請建立新批次後重新匯出")
-    wb.save(output)
-    return output
+    return publish_quote_output(output, wb.save)
 
 
 def save_and_export_customer_quote(
@@ -1365,17 +1392,14 @@ def save_and_export_customer_quote(
         for output_format in formats:
             target = targets[output_format]
             try:
-                output = Path(exporters[output_format](output_dir, batch, lines))
-            except QuoteCollisionError:
-                # 匯出器發現競爭者先建立同名檔案時，不可刪除該既有檔案。
-                raise
+                published_output = exporters[output_format](output_dir, batch, lines)
             except Exception:
-                if target.exists():
-                    created_paths.add(target)
+                # 匯出器尚未成功安全發布時，交易端沒有檔案所有權可清理。
                 raise
+            if not isinstance(published_output, PublishedQuoteOutput):
+                raise RuntimeError(f"{output_format.upper()} 匯出器必須使用安全發布器")
+            output = published_output.path
             if output.resolve() != target.resolve() or not target.is_file():
-                if target.exists():
-                    created_paths.add(target)
                 raise RuntimeError(f"{output_format.upper()} 匯出未產生預期的報價檔案")
             created_paths.add(target)
             outputs[output_format] = target
