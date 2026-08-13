@@ -210,6 +210,10 @@ def ensure_quote_schema(conn):
         created_at TEXT NOT NULL, created_by TEXT NOT NULL, price_version_id TEXT NOT NULL,
         subtotal INTEGER NOT NULL, output_file TEXT NOT NULL
     )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS quote_output_files(
+        batch_id TEXT NOT NULL, format TEXT NOT NULL, filename TEXT NOT NULL,
+        created_at TEXT NOT NULL, PRIMARY KEY(batch_id, format)
+    )""")
     conn.execute("""CREATE TABLE IF NOT EXISTS quote_lines(
         id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT NOT NULL, blade_id INTEGER NOT NULL,
         display_order INTEGER NOT NULL, spec TEXT NOT NULL, brand_id TEXT NOT NULL,
@@ -300,12 +304,24 @@ def preview_quote_batch_id(conn, now=None):
     return f"{prefix}{sequence:03d}"
 
 
-def quote_output_filename(customer, month_range, batch_id):
+def quote_output_filename(customer, month_range, batch_id, extension="xlsx"):
     """回傳報價批次唯一對應的客戶維修明細檔名。"""
+    extension = str(extension).lower().lstrip(".")
+    if extension not in {"xlsx", "pdf"}:
+        raise ValueError("報價輸出格式僅支援 xlsx 或 pdf")
     return (
         f"客戶維修明細_{_safe_quote_filename_component(customer)}_"
-        f"{_safe_quote_filename_component(month_range)}_{batch_id}.xlsx"
+        f"{_safe_quote_filename_component(month_range)}_{batch_id}.{extension}"
     )
+
+
+def _normalise_quote_output_formats(output_formats):
+    formats = tuple(str(output_format).lower().lstrip(".") for output_format in output_formats)
+    if not formats:
+        raise ValueError("至少選擇一種報價輸出格式")
+    if len(set(formats)) != len(formats) or any(output_format not in {"xlsx", "pdf"} for output_format in formats):
+        raise ValueError("報價輸出格式僅支援不重複的 xlsx 或 pdf")
+    return formats
 
 
 def quote_line_from_blade(blade, rules):
@@ -1300,7 +1316,7 @@ def export_customer_quote_excel(output_dir, batch, lines):
     ws.page_margins.bottom = 0.5
     ws.print_options.horizontalCentered = True
 
-    filename = quote_output_filename(batch.customer, batch.month_range, batch.id)
+    filename = quote_output_filename(batch.customer, batch.month_range, batch.id, "xlsx")
     output = output_dir / filename
     if output.exists():
         raise QuoteCollisionError(f"報價單號 {batch.id} 的客戶維修明細已存在，請建立新批次後重新匯出")
@@ -1310,52 +1326,75 @@ def export_customer_quote_excel(output_dir, batch, lines):
 
 def save_and_export_customer_quote(
     conn, output_dir, customer, months, lines, created_by, *, quote_date,
-    now=None, exporter=None,
+    now=None, output_formats=("xlsx",), exporters=None,
 ):
-    """在同一交易中建立快照與 Excel；任一步驟失敗即取消兩邊結果。"""
+    """在同一交易中建立快照與所選輸出；任一步驟失敗即取消兩邊結果。"""
     if conn.in_transaction:
         raise RuntimeError("產生報價前資料庫不得有未完成的交易")
-    exporter = exporter or export_customer_quote_excel
+    formats = _normalise_quote_output_formats(output_formats)
+    exporters = dict(exporters or {})
+    exporters.setdefault("xlsx", export_customer_quote_excel)
+    missing_formats = [output_format for output_format in formats if output_format not in exporters]
+    if missing_formats:
+        raise ValueError(f"缺少報價輸出器：{', '.join(missing_formats)}")
     now = now or datetime.now()
     output_dir = Path(output_dir)
-    target = None
+    targets = {}
+    created_paths = set()
     conn.execute("BEGIN IMMEDIATE")
     try:
         batch_id = preview_quote_batch_id(conn, now)
         month_range = _quote_month_range(months)
-        output_file = quote_output_filename(customer, month_range, batch_id)
-        target = output_dir / output_file
-        if target.exists():
-            raise QuoteCollisionError("同名 Excel 已存在，請重新確認後再產生")
+        filenames = {
+            output_format: quote_output_filename(customer, month_range, batch_id, output_format)
+            for output_format in formats
+        }
+        targets = {
+            output_format: output_dir / filename for output_format, filename in filenames.items()
+        }
+        for output_format, target in targets.items():
+            if target.exists():
+                raise QuoteCollisionError(f"同名 {output_format.upper()} 已存在，請重新確認後再產生")
+        output_file = filenames["xlsx"] if "xlsx" in filenames else filenames["pdf"]
         batch = save_quote_batch(
             conn, customer, months, lines, created_by,
             quote_date=quote_date, output_file=output_file,
             batch_id=batch_id, now=now, commit=False,
         )
-        try:
-            output = Path(exporter(output_dir, batch, lines))
-        except QuoteCollisionError:
-            # 若匯出器發現競爭者先建立同名檔案，不可刪除該既有檔案。
-            raise
-        except Exception:
-            if target.exists():
-                target.unlink()
-            raise
-        if output.resolve() != target.resolve() or not target.is_file():
-            if target.exists():
-                target.unlink()
-            raise RuntimeError("Excel 匯出未產生預期的報價檔案")
+        outputs = {}
+        for output_format in formats:
+            target = targets[output_format]
+            try:
+                output = Path(exporters[output_format](output_dir, batch, lines))
+            except QuoteCollisionError:
+                # 匯出器發現競爭者先建立同名檔案時，不可刪除該既有檔案。
+                raise
+            except Exception:
+                if target.exists():
+                    created_paths.add(target)
+                raise
+            if output.resolve() != target.resolve() or not target.is_file():
+                if target.exists():
+                    created_paths.add(target)
+                raise RuntimeError(f"{output_format.upper()} 匯出未產生預期的報價檔案")
+            created_paths.add(target)
+            outputs[output_format] = target
+            conn.execute(
+                "INSERT INTO quote_output_files(batch_id, format, filename, created_at) VALUES (?, ?, ?, ?)",
+                (batch.id, output_format, target.name, batch.created_at),
+            )
         try:
             conn.commit()
         except Exception as error:
             conn.rollback()
-            if target.exists():
-                target.unlink()
             raise RuntimeError("資料庫提交失敗，報價快照與 Excel 已取消") from error
-        return batch, target
+        return batch, outputs
     except Exception:
         if conn.in_transaction:
             conn.rollback()
+        for created_path in created_paths:
+            if created_path.exists():
+                created_path.unlink()
         raise
 
 
@@ -2749,10 +2788,11 @@ class App:
             output_dir = BASE / "客戶維修報價"
             try:
                 with get_db() as conn:
-                    _batch, output = save_and_export_customer_quote(
+                    _batch, outputs = save_and_export_customer_quote(
                         conn, output_dir, customer, months, included, "鋸片醫生",
                         quote_date=quote_date,
                     )
+                output = outputs.get("xlsx") or outputs.get("pdf")
                 if os.name == "nt" and hasattr(os, "startfile"): os.startfile(str(output))
                 self.log(f"✅ 客戶維修報價明細已輸出: {output.name}")
                 dialog.destroy()

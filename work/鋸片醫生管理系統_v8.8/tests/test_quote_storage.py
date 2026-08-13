@@ -46,7 +46,96 @@ def read_line(conn, batch_id):
     ).fetchone()
 
 
+def read_output_formats(conn, batch_id):
+    return [
+        (row["format"], row["filename"])
+        for row in conn.execute(
+            "SELECT format, filename FROM quote_output_files "
+            "WHERE batch_id = ? ORDER BY format", (batch_id,)
+        )
+    ]
+
+
+def count_batches(conn):
+    return conn.execute("SELECT COUNT(*) FROM quote_batches").fetchone()[0]
+
+
+def successful_excel_exporter(target_dir, batch, lines):
+    output = Path(target_dir) / app.quote_output_filename(
+        batch.customer, batch.month_range, batch.id, "xlsx"
+    )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(b"xlsx")
+    return output
+
+
 class QuoteStorageTests(unittest.TestCase):
+    def test_pdf_only_records_pdf_and_keeps_legacy_output_file(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            output_dir = Path(directory) / "output"
+            fixed_now = datetime(2026, 8, 13, 9, 30)
+            try:
+                app.ensure_quote_schema(conn)
+
+                def pdf_exporter(target_dir, batch, lines):
+                    output = Path(target_dir) / app.quote_output_filename(
+                        batch.customer, batch.month_range, batch.id, "pdf"
+                    )
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    output.write_bytes(b"pdf")
+                    return output
+
+                batch, outputs = app.save_and_export_customer_quote(
+                    conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                    quote_date=date(2026, 8, 13), output_formats=("pdf",),
+                    exporters={"pdf": pdf_exporter}, now=fixed_now,
+                )
+
+                self.assertEqual(outputs["pdf"].suffix, ".pdf")
+                self.assertEqual(batch.output_file, outputs["pdf"].name)
+                self.assertEqual(read_output_formats(conn, batch.id), [("pdf", outputs["pdf"].name)])
+            finally:
+                conn.close()
+
+    def test_excel_and_pdf_failure_rolls_back_all_outputs_and_snapshot(self):
+        with TemporaryDirectory() as directory:
+            conn = sqlite3.connect(Path(directory) / "quote.db")
+            conn.row_factory = sqlite3.Row
+            output_dir = Path(directory) / "output"
+            fixed_now = datetime(2026, 8, 13, 9, 30)
+            try:
+                app.ensure_quote_schema(conn)
+
+                def successful_excel(target_dir, batch, lines):
+                    output = Path(target_dir) / app.quote_output_filename(
+                        batch.customer, batch.month_range, batch.id, "xlsx"
+                    )
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    output.write_bytes(b"xlsx")
+                    return output
+
+                def failing_pdf(target_dir, batch, lines):
+                    output = Path(target_dir) / app.quote_output_filename(
+                        batch.customer, batch.month_range, batch.id, "pdf"
+                    )
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    output.write_bytes(b"partial pdf")
+                    raise RuntimeError("forced PDF export failure")
+
+                with self.assertRaisesRegex(RuntimeError, "forced PDF export failure"):
+                    app.save_and_export_customer_quote(
+                        conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
+                        quote_date=date(2026, 8, 13), output_formats=("xlsx", "pdf"),
+                        exporters={"xlsx": successful_excel, "pdf": failing_pdf}, now=fixed_now,
+                    )
+
+                self.assertEqual(count_batches(conn), 0)
+                self.assertEqual(list(output_dir.glob("*")), [])
+            finally:
+                conn.close()
+
     def test_atomic_quote_success_commits_snapshot_matching_final_workbook_name(self):
         with TemporaryDirectory() as directory:
             conn = sqlite3.connect(Path(directory) / "quote.db")
@@ -55,11 +144,13 @@ class QuoteStorageTests(unittest.TestCase):
             try:
                 app.ensure_quote_schema(conn)
 
-                batch, output = app.save_and_export_customer_quote(
+                batch, outputs = app.save_and_export_customer_quote(
                     conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
                     quote_date=date(2026, 8, 13),
+                    exporters={"xlsx": successful_excel_exporter},
                     now=datetime(2026, 8, 13, 9, 30),
                 )
+                output = outputs["xlsx"]
 
                 self.assertTrue(output.is_file())
                 self.assertEqual(output.name, batch.output_file)
@@ -117,7 +208,7 @@ class QuoteStorageTests(unittest.TestCase):
                         conn, output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
                         quote_date=date(2026, 8, 13),
                         now=datetime(2026, 8, 13, 9, 30),
-                        exporter=failing_exporter,
+                        exporters={"xlsx": failing_exporter},
                     )
 
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM quote_batches").fetchone()[0], 0)
@@ -157,6 +248,7 @@ class QuoteStorageTests(unittest.TestCase):
                         output_dir, "甲", [(2026, 8)], [confirmed_305_line()], "技師甲",
                         quote_date=date(2026, 8, 13),
                         now=datetime(2026, 8, 13, 9, 30),
+                        exporters={"xlsx": successful_excel_exporter},
                     )
 
                 self.assertEqual(real_conn.execute("SELECT COUNT(*) FROM quote_batches").fetchone()[0], 0)
