@@ -70,10 +70,10 @@ def successful_excel_exporter(target_dir, batch, lines):
 
 
 class QuoteStorageTests(unittest.TestCase):
-    def test_quote_confirmation_size_fits_1147_pixel_wide_screen(self):
+    def test_quote_confirmation_size_leaves_room_for_export_controls(self):
         width, height = app.quote_confirmation_dialog_size(1147, 768)
 
-        self.assertEqual(width, 1123)
+        self.assertEqual(width, 980)
         self.assertEqual(height, 650)
 
     def test_open_failure_reports_generated_files_without_raising(self):

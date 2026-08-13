@@ -355,9 +355,9 @@ def quote_primary_open_format(formats):
 
 
 def quote_confirmation_dialog_size(screen_width, screen_height):
-    """回傳不超出目前螢幕可用範圍的報價確認視窗尺寸。"""
+    """回傳預留輸出控制列空間、且不超出螢幕的確認視窗尺寸。"""
     return (
-        max(1, min(1180, int(screen_width) - 24)),
+        max(1, min(980, int(screen_width) - 24)),
         max(1, min(650, int(screen_height) - 80)),
     )
 
@@ -3070,30 +3070,38 @@ class App:
         ]
         state_rows = []
 
+        dialog.columnconfigure(0, weight=1)
+        dialog.rowconfigure(2, weight=1)
         ttk.Label(dialog, text=f"客戶：{customer}　月份：{_quote_month_range(months)}　未稅",
-                  font=("Microsoft JhengHei", 12, "bold")).pack(pady=(10, 4))
+                  font=("Microsoft JhengHei", 12, "bold")).grid(
+                      row=0, column=0, pady=(10, 4)
+                  )
         ttk.Label(dialog, text="可調整數量、單價與備註；紅色『待人工填價』未完成前不能產生報價檔。",
-                  foreground="#a00000").pack(pady=(0, 8))
+                  foreground="#a00000").grid(row=1, column=0, pady=(0, 8))
 
         total_var = tk.StringVar(value="未稅總計：NT$ 0")
         footer = ttk.Frame(dialog)
-        footer.pack(side="bottom", fill="x", padx=12, pady=10)
-        ttk.Label(footer, textvariable=total_var, font=("Microsoft JhengHei", 12, "bold")).pack(side="left")
+        footer.grid(row=3, column=0, sticky="ew", padx=12, pady=10)
+        summary = ttk.Frame(footer)
+        summary.pack(fill="x")
+        ttk.Label(summary, textvariable=total_var, font=("Microsoft JhengHei", 12, "bold")).pack(side="left")
         output_format_var = tk.StringVar(value="Excel（.xlsx）")
         output_format_options = {
             "Excel（.xlsx）": ("xlsx",),
             "PDF（A4）": ("pdf",),
             "Excel＋PDF": ("xlsx", "pdf"),
         }
-        ttk.Label(footer, text="輸出格式：").pack(side="left", padx=(24, 2))
+        output_picker = ttk.Frame(summary)
+        output_picker.pack(side="right")
+        ttk.Label(output_picker, text="輸出格式：").pack(side="left", padx=(24, 2))
         ttk.Combobox(
-            footer, textvariable=output_format_var,
+            output_picker, textvariable=output_format_var,
             values=tuple(output_format_options), state="readonly", width=16,
         ).pack(side="left")
         confirm_button = ttk.Button(footer, text="產生客戶維修報價")
 
         table_host = ttk.Frame(dialog)
-        table_host.pack(fill="both", expand=True, padx=10)
+        table_host.grid(row=2, column=0, sticky="nsew", padx=10)
         canvas = tk.Canvas(table_host, highlightthickness=0)
         scrollbar = ttk.Scrollbar(table_host, orient="vertical", command=canvas.yview)
         content = ttk.Frame(canvas)
@@ -3218,7 +3226,7 @@ class App:
                 )
 
         confirm_button.configure(command=confirm)
-        confirm_button.pack(side="right")
+        confirm_button.pack(pady=(8, 0))
         refresh()
 
     # ── 設定 ─────────────────────────────────────────────────
