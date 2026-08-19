@@ -12,6 +12,16 @@ vm.runInContext(source, context);
 const backend = context.SawDoctorBackendCore;
 assert.ok(backend, 'Apps Script core should export SawDoctorBackendCore');
 
+const manifest = JSON.parse(fs.readFileSync(
+  path.join(__dirname, '..', 'apps-script', 'appsscript.json'),
+  'utf8'
+));
+assert.deepEqual(
+  manifest.webapp,
+  {executeAs: 'USER_DEPLOYING', access: 'ANYONE_ANONYMOUS'},
+  'Apps Script deployment must remain accessible to anonymous website visitors'
+);
+
 assert.equal(backend.formatRegistrationNumber_('20260729', 1), 'SD-20260729-001');
 assert.equal(backend.formatRegistrationNumber_('20260729', 23), 'SD-20260729-023');
 
