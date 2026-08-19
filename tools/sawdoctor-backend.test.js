@@ -17,7 +17,7 @@ assert.equal(backend.formatRegistrationNumber_('20260729', 23), 'SD-20260729-023
 
 assert.deepEqual(
   Array.from(backend.validateInquiry_({name: '', phone: '', consent: false})),
-  ['姓名不可空白', '聯絡電話不可空白', '尚未同意問診資料使用', '送出識別碼不可空白']
+  ['姓名不可空白', '聯絡電話不可空白', '尚未同意問診資料使用', '送出識別碼不可空白', '鋸片作動方式不可空白']
 );
 
 assert.deepEqual(
@@ -25,7 +25,8 @@ assert.deepEqual(
     name: '劉家維',
     phone: '+886922345816',
     consent: true,
-    requestId: 'request-001'
+    requestId: 'request-001',
+    sawAction: '由上而下（下壓式切削）'
   })),
   []
 );
@@ -44,6 +45,7 @@ const consultation = backend.buildConsultationText_(
     materialLabel: '不鏽鋼',
     issues: ['壽命短', '尺寸不符合／切不到'],
     cutDirection: '橫切',
+    sawAction: '由下而上（昇降式切削）',
     machineBrand: '其他',
     machineBrandOther: '測試機械',
     machineModel: 'CUSTOM-01',
@@ -74,6 +76,7 @@ for (const expected of [
   '掛號日期：2026-07-29 14:30:00',
   '切削材料：不鏽鋼',
   '主要困擾：壽命短、尺寸不符合／切不到',
+  '鋸片作動方式：由下而上（昇降式切削）',
   '機台轉速：1950 RPM',
   '鋸片規格：外徑 255mm／切幅 2.4mm／120 齒',
   '能否安裝更大尺寸鋸片：不確定',

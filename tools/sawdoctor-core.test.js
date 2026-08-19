@@ -16,6 +16,40 @@ vm.runInContext(match[1], context);
 const core = context.globalThis.SawDoctorCore;
 assert.ok(core, 'SawDoctorCore should be exported');
 
+assert.deepEqual(
+  JSON.parse(JSON.stringify(core.validateQuick({
+    material: 'wood-hard',
+    issues: ['切割抖動'],
+    cutDirection: '橫切',
+    sawAction: ''
+  }))),
+  [{field: 'sawAction', message: '請選擇鋸片作動方式。'}],
+  'quick assessment should require a saw action mode'
+);
+
+assert.deepEqual(
+  JSON.parse(JSON.stringify(core.validateQuick({
+    material: 'wood-hard',
+    issues: ['切割抖動'],
+    cutDirection: '橫切',
+    sawAction: '由上而下（下壓式切削）'
+  }))),
+  [],
+  'quick assessment should accept a supported saw action mode'
+);
+
+const jitterAssessment = core.buildAssessment({
+  material: 'hardwood',
+  issues: ['切割抖動'],
+  cutDirection: '橫切',
+  sawAction: '左右／前後切割（行進式切削）'
+});
+assert.equal(jitterAssessment.level, 'warning', 'cutting jitter should require further checking');
+assert.ok(
+  jitterAssessment.causes.some((item) => item.includes('夾持') && item.includes('進給')),
+  'cutting jitter should prompt checks for clamping and feed stability'
+);
+
 const assessment = core.buildAssessment({
   material: 'steel',
   materialLabel: '鋼材／型鋼',
@@ -239,10 +273,12 @@ assert.ok(uncertainMachine.followUpQuestions.some((item) => item.includes('設�
 
 const brandMessage = core.buildLineMessage({
   ...completeInput,
+  sawAction: '由上而下（下壓式切削）',
   machineBrand: '其他',
   machineBrandOther: '測試機械',
   machineModel: 'CUSTOM-01'
 });
 assert.ok(brandMessage.includes('設備品牌：測試機械'));
 assert.ok(brandMessage.includes('設備型號：CUSTOM-01'));
+assert.ok(brandMessage.includes('鋸片作動方式：由上而下（下壓式切削）'));
 console.log('SawDoctorCore diagnosis tests passed');
