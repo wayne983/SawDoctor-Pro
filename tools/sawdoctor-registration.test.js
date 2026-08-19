@@ -140,6 +140,7 @@ function makePayload(requestId) {
     materialLabel: '不鏽鋼',
     issues: ['壽命短', '切割偏斜'],
     cutDirection: '橫切',
+    sawAction: '左右／前後切割（行進式切削）',
     machineBrand: '冠盛',
     machineModel: '測試機台',
     rpm: '1950',
@@ -163,7 +164,7 @@ oldSheet.appendRow(oldHeaders);
 context.ensureRegistrationHeaders_(oldSheet);
 assert.deepEqual(oldSheet.rows[0].slice(0, oldHeaders.length), oldHeaders);
 assert.equal(oldSheet.rows[0].length, oldHeaders.length + 1);
-assert.equal(oldSheet.rows[0].at(-1), '設備品牌');
+assert.equal(oldSheet.rows[0].at(-1), '鋸片作動方式');
 
 const first = context.registerInquiry_(makePayload('request-001'));
 assert.equal(first.ok, true);
@@ -180,11 +181,13 @@ const sheet = spreadsheet.getSheetByName('初診單');
 assert.ok(sheet, 'registration sheet should exist');
 assert.equal(sheet.rows.length, 2, 'sheet should contain one header and one registration');
 assert.equal(sheet.rows[1][0], 'SD-20260729-001');
-assert.equal(sheet.rows[0].at(-1), '設備品牌');
-assert.equal(sheet.rows[1].at(-1), '冠盛');
+assert.equal(sheet.rows[0].at(-2), '設備品牌');
+assert.equal(sheet.rows[1].at(-2), '冠盛');
+assert.equal(sheet.rows[0].at(-1), '鋸片作動方式');
+assert.equal(sheet.rows[1].at(-1), '左右／前後切割（行進式切削）');
 assert.equal(sheet.rows[0][10], '機台轉速', 'existing headers must not move');
 assert.equal(sheet.rows[1][9], '測試機台', 'existing model data must not move');
-assert.equal(sheet.rows[1].at(-2), 'SENT');
+assert.equal(sheet.rows[1].at(-3), 'SENT');
 
 const duplicate = context.registerInquiry_(makePayload('request-001'));
 assert.equal(duplicate.ok, true);
@@ -198,8 +201,9 @@ assert.equal(failed.ok, false);
 assert.equal(failed.registrationNumber, '');
 assert.equal(sentMail.length, 2, 'failed delivery should make only one mail attempt');
 assert.equal(sheet.rows.length, 3, 'failed delivery should remain traceable in the sheet');
-assert.equal(sheet.rows[2].at(-2), 'FAILED');
-assert.equal(sheet.rows[2].at(-1), '冠盛');
+assert.equal(sheet.rows[2].at(-3), 'FAILED');
+assert.equal(sheet.rows[2].at(-2), '冠盛');
+assert.equal(sheet.rows[2].at(-1), '左右／前後切割（行進式切削）');
 
 failMail = false;
 const failedRetry = context.registerInquiry_(makePayload('request-002'));

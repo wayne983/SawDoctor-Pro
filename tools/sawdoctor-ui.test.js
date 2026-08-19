@@ -54,6 +54,18 @@ assert.match(
 );
 
 assert.match(html, /data-issue="尺寸不符合／切不到"/, 'size issue choice should be available');
+assert.match(html, /data-issue="切割抖動"/, 'cutting jitter choice should be available');
+assert.doesNotMatch(html, /data-issue="暫無困擾"/, 'no-problem choice should be removed');
+assert.doesNotMatch(html, /data-cut="不確定"/, 'uncertain cut direction should be removed');
+assert.match(html, /fieldset[^>]*aria-labelledby="saw-action-label"/);
+for (const action of [
+  '由上而下（下壓式切削）',
+  '由下而上（昇降式切削）',
+  '左右／前後切割（行進式切削）'
+]) {
+  assert.ok(html.includes(`data-saw-action="${action}"`), `saw action choices should include ${action}`);
+}
+assert.match(html, /sawAction:selected\(sawActionButtons,'aria-checked'\)\[0\]\?\?''/);
 assert.match(html, /id="larger-blade-fit"/, 'larger-blade fit field should be available');
 assert.match(html, /id="clearance-mm"/, 'minimum clearance field should be available');
 assert.match(html, /鋸片醫生希望您能提供/, 'follow-up heading should use SawDoctor wording');

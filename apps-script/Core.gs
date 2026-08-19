@@ -13,6 +13,7 @@ var SawDoctorBackendCore = (function () {
     if (!text_(payload.phone, '')) errors.push('聯絡電話不可空白');
     if (payload.consent !== true) errors.push('尚未同意問診資料使用');
     if (!text_(payload.requestId, '')) errors.push('送出識別碼不可空白');
+    if (!text_(payload.sawAction, '')) errors.push('鋸片作動方式不可空白');
     return errors;
   }
 
@@ -82,6 +83,7 @@ var SawDoctorBackendCore = (function () {
       '切削材料：' + text_(payload.materialLabel || payload.material),
       '主要困擾：' + issues,
       '切割方向：' + text_(payload.cutDirection),
+      '鋸片作動方式：' + text_(payload.sawAction),
       '設備品牌：' + machineBrand_(payload),
       '設備型號：' + text_(payload.machineModel),
       '機台轉速：' + (payload.rpm ? payload.rpm + ' RPM' : '未提供'),
