@@ -230,11 +230,31 @@ assert.equal(
 assert.equal(core.machineBrandLabel({machineBrand: '不確定'}), '不確定');
 assert.equal(core.machineBrandLabel({}), '未提供');
 
+assert.deepEqual([...core.machineBrandsForType('木工圓鋸機')], [
+  '邰展', '勝源', 'SAWSTOP', '萬代利', '博銓', '嘉元全', '麗達', '慶祥', '其他'
+]);
+assert.deepEqual([...core.machineBrandsForType('鋁用')], [
+  '日意', '鋒和', '冠盛', '和和', '慶祥', '合濟', '中勝', '昱帆', '其他'
+]);
+assert.deepEqual([...core.machineBrandsForType('鐵工')], [
+  '慶祥', '合濟', '捷順', '鋼鐵宿敵', '其他'
+]);
+assert.deepEqual([...core.machineBrandsForType('電動木工')], [
+  '博世', '牧田', '力山', 'FESTOOL', 'HIKOKI', '其他'
+]);
+assert.deepEqual([...core.machineBrandsForType('')], []);
+assert.deepEqual([...core.machineBrandsForType('未知種類')], []);
+
 const knownMachine = core.buildAssessment({
   ...completeInput,
+  machineType: '鋁用',
   machineBrand: '冠盛',
   machineModel: 'KS-100'
 });
+assert.ok(
+  knownMachine.followUpQuestions.every((item) => !item.includes('機台種類')),
+  'selected machine type should not be requested again'
+);
 assert.ok(
   knownMachine.followUpQuestions.every((item) => !item.includes('設備品牌')),
   'selected equipment brand should not be requested again'
@@ -244,9 +264,13 @@ assert.ok(
   'provided equipment model should not be requested again'
 );
 
-const missingMachine = core.buildAssessment({...completeInput, machineBrand: '', machineModel: ''});
+const missingMachine = core.buildAssessment({...completeInput, machineType: '', machineBrand: '', machineModel: ''});
+assert.ok(missingMachine.followUpQuestions.some((item) => item.includes('機台種類')));
 assert.ok(missingMachine.followUpQuestions.some((item) => item.includes('設備品牌')));
 assert.ok(missingMachine.followUpQuestions.some((item) => item.includes('設備型號')));
+const missingBrandQuestion = missingMachine.followUpQuestions.find((item) => item.startsWith('設備品牌'));
+assert.ok(missingBrandQuestion.includes('可留空'));
+assert.ok(!missingBrandQuestion.includes('可選不確定'));
 
 const unnamedOtherMachine = core.buildAssessment({
   ...completeInput,
@@ -274,10 +298,12 @@ assert.ok(uncertainMachine.followUpQuestions.some((item) => item.includes('設�
 const brandMessage = core.buildLineMessage({
   ...completeInput,
   sawAction: '由上而下（下壓式切削）',
+  machineType: '鋁用',
   machineBrand: '其他',
   machineBrandOther: '測試機械',
   machineModel: 'CUSTOM-01'
 });
+assert.ok(brandMessage.includes('機台種類：鋁用'));
 assert.ok(brandMessage.includes('設備品牌：測試機械'));
 assert.ok(brandMessage.includes('設備型號：CUSTOM-01'));
 assert.ok(brandMessage.includes('鋸片作動方式：由上而下（下壓式切削）'));

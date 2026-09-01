@@ -56,6 +56,7 @@ const consultation = backend.buildConsultationText_(
     issues: ['壽命短', '尺寸不符合／切不到'],
     cutDirection: '橫切',
     sawAction: '由下而上（昇降式切削）',
+    machineType: '鋁用',
     machineBrand: '其他',
     machineBrandOther: '測試機械',
     machineModel: 'CUSTOM-01',
@@ -87,6 +88,7 @@ for (const expected of [
   '切削材料：不鏽鋼',
   '主要困擾：壽命短、尺寸不符合／切不到',
   '鋸片作動方式：由下而上（昇降式切削）',
+  '機台種類：鋁用',
   '機台轉速：1950 RPM',
   '鋸片規格：外徑 255mm／切幅 2.4mm／120 齒',
   '能否安裝更大尺寸鋸片：不確定',
@@ -105,6 +107,7 @@ assert.ok(consultation.includes('設備品牌：測試機械'));
 assert.ok(consultation.includes('設備型號：CUSTOM-01'));
 assert.equal((consultation.match(/設備品牌：/g) ?? []).length, 1);
 assert.equal((consultation.match(/設備型號：/g) ?? []).length, 1);
+assert.equal((consultation.match(/機台種類：/g) ?? []).length, 1);
 assert.equal(backend.machineBrand_({machineBrand: '日意'}), '日意');
 assert.equal(backend.machineBrand_({machineBrand: '不確定'}), '不確定');
 assert.equal(
