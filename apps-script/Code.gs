@@ -33,7 +33,8 @@ var REGISTRATION_HEADERS = Object.freeze([
   '完整初診單',
   '狀態',
   '設備品牌',
-  '鋸片作動方式'
+  '鋸片作動方式',
+  '機台種類'
 ]);
 
 function nowProvider_() {
@@ -69,7 +70,7 @@ function ensureRegistrationHeaders_(sheet) {
     sheet.appendRow(REGISTRATION_HEADERS);
     return;
   }
-  ['設備品牌', '鋸片作動方式'].forEach(function (header) {
+  ['設備品牌', '鋸片作動方式', '機台種類'].forEach(function (header) {
     var column = REGISTRATION_HEADERS.indexOf(header) + 1;
     var current = String(sheet.getRange(1, column).getValue() || '').trim();
     if (!current) sheet.getRange(1, column).setValue(header);
@@ -124,7 +125,8 @@ function appendRegistration_(sheet, payload, assessment, registration, consultat
     consultationText,
     'SENDING',
     SawDoctorBackendCore.machineBrand_(payload),
-    payload.sawAction || ''
+    payload.sawAction || '',
+    payload.machineType || ''
   ]);
   return sheet.getLastRow();
 }

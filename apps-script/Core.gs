@@ -84,6 +84,7 @@ var SawDoctorBackendCore = (function () {
       '主要困擾：' + issues,
       '切割方向：' + text_(payload.cutDirection),
       '鋸片作動方式：' + text_(payload.sawAction),
+      '機台種類：' + text_(payload.machineType),
       '設備品牌：' + machineBrand_(payload),
       '設備型號：' + text_(payload.machineModel),
       '機台轉速：' + (payload.rpm ? payload.rpm + ' RPM' : '未提供'),
