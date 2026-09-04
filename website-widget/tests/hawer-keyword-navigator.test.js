@@ -48,3 +48,13 @@ test('索引固定 URL 都是 HTTPS，且結果不超過三筆', () => {
 
   assert.ok(HAWERKeywordNavigator.search('鋁 鋼 木工 研磨 診療').results.length <= 3);
 });
+
+test('安裝手冊包含全站貼上、發布前後驗證與維護指引', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+
+  assert.match(readme, /全站/);
+  assert.match(readme, /發布前/);
+  assert.match(readme, /發布後/);
+  assert.match(readme, /PAGE_INDEX/);
+  assert.match(readme, /裂紋/);
+});
