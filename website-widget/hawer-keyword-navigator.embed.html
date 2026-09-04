@@ -180,6 +180,7 @@
 </div>
 <script>
 (() => {
+  const SITE_HOSTNAME = 'www.hawer-knife.com';
   const DANGER_KEYWORDS = [
     '裂紋',
     '裂痕',
@@ -272,7 +273,21 @@
       return '';
     }
 
-    return value.replace(/　/g, ' ').trim().toLowerCase().replace(/\s+/g, ' ');
+    return value
+      .normalize('NFKC')
+      .replace(/[，,。．、；;：:！？!?／/\\|()（）［］【】「」『』<>《》]+/g, ' ')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+  }
+
+  function isTrustedHawerUrl(value) {
+    try {
+      const url = new URL(String(value));
+      return url.protocol === 'https:' && url.hostname.toLowerCase() === SITE_HOSTNAME;
+    } catch {
+      return false;
+    }
   }
 
   function search(query, pages = PAGE_INDEX, limit = 3) {
@@ -288,7 +303,9 @@
     }
 
     const isDanger = DANGER_KEYWORDS.some((keyword) => normalizedQuery.includes(keyword));
-    const scored = pages
+    const candidatePages = Array.isArray(pages) ? pages : PAGE_INDEX;
+    const scored = candidatePages
+      .filter((page) => page && Array.isArray(page.keywords) && isTrustedHawerUrl(page.url))
       .map((page, index) => {
         const matchedKeywords = page.keywords.filter((keyword) =>
           normalizedQuery.includes(normalizeText(keyword))
@@ -303,10 +320,17 @@
       .sort((left, right) => right.score - left.score || right.priority - left.priority || left.index - right.index);
 
     if (isDanger) {
-      const diagnosis = pages.find((page) => page.id === 'diagnosis');
-      const withoutDiagnosis = scored.filter((page) => page.id !== 'diagnosis');
+      const diagnosis = candidatePages.find(
+        (page) => page && page.id === 'diagnosis' && isTrustedHawerUrl(page.url)
+      );
       if (diagnosis) {
-        scored.splice(0, scored.length, { ...diagnosis, matchedKeywords: [], score: Number.MAX_SAFE_INTEGER, index: -1 }, ...withoutDiagnosis);
+        scored.splice(
+          0,
+          scored.length,
+          { ...diagnosis, matchedKeywords: [], score: Number.MAX_SAFE_INTEGER, index: -1 }
+        );
+      } else {
+        scored.splice(0, scored.length);
       }
     }
 
@@ -325,7 +349,7 @@
     for (const anchor of anchors) {
       const text = normalizeText(anchor.textContent);
       const href = String(anchor.href || '');
-      if (href.startsWith('https://') && labels.some((label) => text.includes(normalizeText(label)))) {
+      if (isTrustedHawerUrl(href) && labels.some((label) => text.includes(normalizeText(label)))) {
         return href;
       }
     }
@@ -337,6 +361,7 @@
     PAGE_INDEX,
     DANGER_KEYWORDS,
     normalizeText,
+    isTrustedHawerUrl,
     search,
     findExistingSiteLink
   };
