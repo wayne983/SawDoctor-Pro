@@ -1,4 +1,183 @@
-<div id="hawer-ai-root"></div>
+<style>
+  #hawer-ai-root {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 2147483000;
+    font-family: Arial, "Microsoft JhengHei", sans-serif;
+  }
+
+  #hawer-ai-root * {
+    box-sizing: border-box;
+  }
+
+  #hawer-ai-launcher {
+    border: 0;
+    border-radius: 999px;
+    background: #0b4f6c;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 14px 18px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+  }
+
+  #hawer-ai-launcher:focus-visible,
+  #hawer-ai-panel button:focus-visible,
+  #hawer-ai-panel a:focus-visible,
+  #hawer-ai-query:focus-visible {
+    outline: 3px solid #f4b942;
+    outline-offset: 2px;
+  }
+
+  #hawer-ai-panel {
+    position: absolute;
+    right: 0;
+    bottom: 62px;
+    width: min(380px, calc(100vw - 32px));
+    max-height: min(620px, calc(100vh - 100px));
+    overflow-y: auto;
+    border: 1px solid #d4dce2;
+    border-radius: 14px;
+    background: #fff;
+    color: #18313f;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+    padding: 18px;
+  }
+
+  #hawer-ai-title {
+    margin: 0 34px 8px 0;
+    font-size: 18px;
+  }
+
+  #hawer-ai-panel p {
+    margin: 0 0 12px;
+    color: #50616b;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  #hawer-ai-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: 0;
+    background: transparent;
+    color: #18313f;
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .hawer-ai-field {
+    display: flex;
+    gap: 8px;
+  }
+
+  #hawer-ai-query {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #9aaab4;
+    border-radius: 8px;
+    padding: 10px;
+    color: #18313f;
+  }
+
+  #hawer-ai-submit,
+  .hawer-ai-shortcut {
+    border: 0;
+    border-radius: 8px;
+    background: #0b4f6c;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 10px 12px;
+  }
+
+  .hawer-ai-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0;
+  }
+
+  .hawer-ai-shortcut {
+    background: #e9f0f4;
+    color: #0b4f6c;
+    font-size: 13px;
+    padding: 7px 9px;
+  }
+
+  #hawer-ai-results {
+    display: grid;
+    gap: 10px;
+  }
+
+  .hawer-ai-guidance {
+    border-left: 4px solid #0b4f6c;
+    background: #f2f7f9;
+    color: #18313f;
+    line-height: 1.55;
+    padding: 10px;
+  }
+
+  .hawer-ai-danger {
+    border-left-color: #b3261e;
+    background: #fff1f0;
+  }
+
+  .hawer-ai-card {
+    border: 1px solid #d4dce2;
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .hawer-ai-card h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+  }
+
+  .hawer-ai-card p {
+    margin-bottom: 8px;
+  }
+
+  .hawer-ai-card a {
+    color: #075b85;
+    font-weight: 700;
+  }
+
+  @media (max-width: 600px) {
+    #hawer-ai-root {
+      right: 16px;
+      bottom: 16px;
+    }
+
+    #hawer-ai-panel {
+      width: calc(100vw - 32px);
+      bottom: 58px;
+    }
+  }
+</style>
+<div id="hawer-ai-root">
+  <button id="hawer-ai-launcher" type="button" aria-expanded="false" aria-controls="hawer-ai-panel">AI 提問</button>
+  <section id="hawer-ai-panel" role="dialog" aria-modal="false" aria-labelledby="hawer-ai-title" hidden>
+    <button id="hawer-ai-close" type="button" aria-label="關閉 AI 提問">×</button>
+    <h2 id="hawer-ai-title">找產品、服務或相關文章</h2>
+    <p>請輸入材料、產品、服務或切割困擾，我們會帶您前往相關官網頁面。</p>
+    <label for="hawer-ai-query">請輸入關鍵字</label>
+    <div class="hawer-ai-field">
+      <input id="hawer-ai-query" type="search" autocomplete="off" placeholder="例如：鋁棒、研磨、切面毛邊">
+      <button id="hawer-ai-submit" type="button">查詢</button>
+    </div>
+    <div class="hawer-ai-shortcuts" aria-label="常用關鍵字">
+      <button class="hawer-ai-shortcut" type="button" data-hawer-ai-query="鋁棒切割">鋁棒切割</button>
+      <button class="hawer-ai-shortcut" type="button" data-hawer-ai-query="鋸片研磨">鋸片研磨</button>
+      <button class="hawer-ai-shortcut" type="button" data-hawer-ai-query="切面毛邊">切面毛邊</button>
+      <button class="hawer-ai-shortcut" type="button" data-hawer-ai-query="鋸片診療">鋸片診療</button>
+    </div>
+    <div id="hawer-ai-results" aria-live="polite"></div>
+  </section>
+</div>
 <script>
 (() => {
   const DANGER_KEYWORDS = [
@@ -162,8 +341,108 @@
     findExistingSiteLink
   };
 
+  function createResultCard(documentRef, page) {
+    const card = documentRef.createElement('article');
+    const title = documentRef.createElement('h3');
+    const summary = documentRef.createElement('p');
+    const link = documentRef.createElement('a');
+    card.className = 'hawer-ai-card';
+    title.textContent = page.title;
+    summary.textContent = page.summary;
+    link.href = page.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = '前往查看';
+    card.append(title, summary, link);
+    return card;
+  }
+
+  function createContactCard(documentRef, href) {
+    return createResultCard(documentRef, {
+      title: '聯絡我們協助確認',
+      summary: '若尚未找到合適頁面，請由專人依材料、機台與現場條件協助確認。',
+      url: href
+    });
+  }
+
+  function initializeWidget(documentRef) {
+    if (documentRef.getElementById('hawer-ai-launcher') === null) {
+      return;
+    }
+
+    const launcher = documentRef.getElementById('hawer-ai-launcher');
+    const panel = documentRef.getElementById('hawer-ai-panel');
+    const closeButton = documentRef.getElementById('hawer-ai-close');
+    const input = documentRef.getElementById('hawer-ai-query');
+    const submit = documentRef.getElementById('hawer-ai-submit');
+    const results = documentRef.getElementById('hawer-ai-results');
+
+    function closePanel() {
+      panel.hidden = true;
+      launcher.setAttribute('aria-expanded', 'false');
+      launcher.focus();
+    }
+
+    function openPanel() {
+      panel.hidden = false;
+      launcher.setAttribute('aria-expanded', 'true');
+      input.focus();
+    }
+
+    function render() {
+      const outcome = search(input.value);
+      results.textContent = '';
+      const guidance = documentRef.createElement('p');
+      guidance.className = outcome.isDanger ? 'hawer-ai-guidance hawer-ai-danger' : 'hawer-ai-guidance';
+      guidance.textContent = outcome.guidance;
+      results.append(guidance);
+
+      outcome.results.forEach((page) => results.append(createResultCard(documentRef, page)));
+      if (!outcome.isEmpty && (outcome.isDanger || outcome.results.length === 0)) {
+        const href = findExistingSiteLink(
+          ['線上詢價', '聯絡我們', '連絡我們'],
+          Array.from(documentRef.querySelectorAll('a'))
+        );
+        if (href) {
+          results.append(createContactCard(documentRef, href));
+        }
+      }
+    }
+
+    launcher.addEventListener('click', () => {
+      if (panel.hidden) {
+        openPanel();
+      } else {
+        closePanel();
+      }
+    });
+    closeButton.addEventListener('click', closePanel);
+    submit.addEventListener('click', render);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        render();
+      }
+    });
+    documentRef.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !panel.hidden) {
+        closePanel();
+      }
+    });
+    documentRef.querySelectorAll('[data-hawer-ai-query]').forEach((button) => {
+      button.addEventListener('click', () => {
+        input.value = button.getAttribute('data-hawer-ai-query') || '';
+        render();
+      });
+    });
+  }
+
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { HAWERKeywordNavigator };
+  }
+
+  if (typeof document !== 'undefined') {
+    initializeWidget(document);
   }
 })();
 </script>

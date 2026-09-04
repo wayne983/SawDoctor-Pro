@@ -32,3 +32,19 @@ test('危險詞優先顯示停機與診療導流', () => {
   assert.equal(result.results[0].id, 'diagnosis');
   assert.match(result.guidance, /停機檢查/);
 });
+
+test('交付片段含有全站可近用的浮動元件與零外部腳本', () => {
+  assert.match(html, /id="hawer-ai-launcher"/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.match(html, /id="hawer-ai-panel"/);
+  assert.match(html, /aria-controls="hawer-ai-panel"/);
+  assert.doesNotMatch(html, /<script[^>]+src=/i);
+});
+
+test('索引固定 URL 都是 HTTPS，且結果不超過三筆', () => {
+  for (const page of HAWERKeywordNavigator.PAGE_INDEX) {
+    assert.match(page.url, /^https:\/\//);
+  }
+
+  assert.ok(HAWERKeywordNavigator.search('鋁 鋼 木工 研磨 診療').results.length <= 3);
+});
