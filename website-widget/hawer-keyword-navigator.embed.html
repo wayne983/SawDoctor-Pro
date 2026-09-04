@@ -1,0 +1,169 @@
+<div id="hawer-ai-root"></div>
+<script>
+(() => {
+  const DANGER_KEYWORDS = [
+    '裂紋',
+    '裂痕',
+    '缺齒',
+    '掉齒',
+    '變形',
+    '劇烈震動',
+    '異常震動',
+    '冒煙',
+    '火花'
+  ];
+
+  const PAGE_INDEX = [
+    {
+      id: 'journal',
+      title: 'HAWER 鋸片醫學誌',
+      url: 'https://www.hawer-knife.com/Product_sCats.asp?productscatid=541163996242',
+      summary: '查看切削困擾、轉速、端跳、切削油與鋸齒保養的相關文章。',
+      keywords: ['切面毛邊', '毛邊', '塞鋁屑', '鋁屑', '端跳', '轉速', '法蘭盤', '切削油', '齒鈍', '切削不良'],
+      priority: 80
+    },
+    {
+      id: 'repair',
+      title: '鋸片研磨與維修',
+      url: 'https://www.hawer-knife.com/Product_sCats.asp?productscatid=288508731574',
+      summary: '了解鋸片研磨、修磨、顯微檢查與售後維修服務。',
+      keywords: ['鋸片研磨', '研磨', '修磨', '維修', '鈍齒', '齒面', '顯微檢查', '售後'],
+      priority: 90
+    },
+    {
+      id: 'diagnosis',
+      title: '鋸片診療系統',
+      url: 'https://www.hawer-knife.com/Product_sCats.asp?productscatid=833957866333',
+      summary: '由真人技師進行鋸片健檢與後續確認。',
+      keywords: ['診療', '健檢', '檢查', '顧問', 'iso', '真人技師', '異常'],
+      priority: 100
+    },
+    {
+      id: 'aluminum-large',
+      title: '鋁棒、鋁胚與鋁錠用大外徑鋸片',
+      url: 'https://www.hawer-knife.com/ProductDetails.asp?produid=187',
+      summary: '適用鋁棒、鋁胚、鋁錠與鋁擠型的大外徑圓鋸片。',
+      keywords: ['鋁棒', '鋁胚', '鋁錠', '鋁擠型', '非鐵金屬', '650', '1870', '大外徑'],
+      priority: 110
+    },
+    {
+      id: 'aluminum',
+      title: '鋁合金用圓鋸片',
+      url: 'https://www.hawer-knife.com/ProductDetails.asp?produid=19',
+      summary: '查看鋁管、鋁板、鋁棒、鋁擠型與銅件的圓鋸片產品。',
+      keywords: ['鋁管', '鋁板', '鋁棒', '鋁擠型', '銅件', '鋁合金', '355', '610'],
+      priority: 90
+    },
+    {
+      id: 'steel',
+      title: '型鋼冷切與熱切鋸片',
+      url: 'https://www.hawer-knife.com/ProductDetails.asp?produid=192',
+      summary: '查看型鋼、鋼鐵冷切與熱切的大外徑鋸片。',
+      keywords: ['型鋼', '鋼鐵', '冷切', '熱切', '2100', '2200'],
+      priority: 95
+    },
+    {
+      id: 'wood-plastic',
+      title: '木工與塑料用鋸片',
+      url: 'https://www.hawer-knife.com/ProductDetails.asp?produid=1',
+      summary: '查看木材、壓克力與塑料加工用圓鋸片。',
+      keywords: ['木工', '木材', '壓克力', '塑料', '塑膠', '255', '455'],
+      priority: 85
+    },
+    {
+      id: 'wikus',
+      title: '德國 WIKUS 金屬鋸帶',
+      url: 'https://www.hawer-knife.com/Product_sCats.asp?productscatid=060581710153',
+      summary: '查看金屬與鋼鐵用環鋸帶系列。',
+      keywords: ['wikus', '鋸帶', '環鋸帶', '帶鋸', '金屬鋸帶'],
+      priority: 85
+    },
+    {
+      id: 'faq',
+      title: '常見問答 FAQ',
+      url: 'https://www.hawer-knife.com/FAQ.asp',
+      summary: '查看常見服務與產品問題。',
+      keywords: ['faq', '常見問題', '問答', '問題'],
+      priority: 70
+    }
+  ];
+
+  function normalizeText(value) {
+    if (typeof value !== 'string') {
+      return '';
+    }
+
+    return value.replace(/　/g, ' ').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function search(query, pages = PAGE_INDEX, limit = 3) {
+    const normalizedQuery = normalizeText(query);
+    if (!normalizedQuery) {
+      return {
+        query: normalizedQuery,
+        isEmpty: true,
+        isDanger: false,
+        guidance: '請輸入材料、產品、服務或切割困擾，例如「鋁棒」、「研磨」或「切面毛邊」。',
+        results: []
+      };
+    }
+
+    const isDanger = DANGER_KEYWORDS.some((keyword) => normalizedQuery.includes(keyword));
+    const scored = pages
+      .map((page, index) => {
+        const matchedKeywords = page.keywords.filter((keyword) =>
+          normalizedQuery.includes(normalizeText(keyword))
+        );
+        const score = matchedKeywords.reduce(
+          (total, keyword) => total + 10 + (normalizedQuery === normalizeText(keyword) ? 10 : 0),
+          0
+        );
+        return { ...page, matchedKeywords, score, index };
+      })
+      .filter((page) => page.score > 0)
+      .sort((left, right) => right.score - left.score || right.priority - left.priority || left.index - right.index);
+
+    if (isDanger) {
+      const diagnosis = pages.find((page) => page.id === 'diagnosis');
+      const withoutDiagnosis = scored.filter((page) => page.id !== 'diagnosis');
+      if (diagnosis) {
+        scored.splice(0, scored.length, { ...diagnosis, matchedKeywords: [], score: Number.MAX_SAFE_INTEGER, index: -1 }, ...withoutDiagnosis);
+      }
+    }
+
+    return {
+      query: normalizedQuery,
+      isEmpty: false,
+      isDanger,
+      guidance: isDanger
+        ? '出現可能影響安全的異常時，請先停機檢查；本頁僅供初步導引，請由真人技師確認。'
+        : '以下是依關鍵字找到的相關官網頁面，實際選用仍請依材料、機台與現場條件確認。',
+      results: scored.slice(0, limit).map(({ index, ...page }) => page)
+    };
+  }
+
+  function findExistingSiteLink(labels, anchors) {
+    for (const anchor of anchors) {
+      const text = normalizeText(anchor.textContent);
+      const href = String(anchor.href || '');
+      if (href.startsWith('https://') && labels.some((label) => text.includes(normalizeText(label)))) {
+        return href;
+      }
+    }
+
+    return '';
+  }
+
+  const HAWERKeywordNavigator = {
+    PAGE_INDEX,
+    DANGER_KEYWORDS,
+    normalizeText,
+    search,
+    findExistingSiteLink
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { HAWERKeywordNavigator };
+  }
+})();
+</script>
