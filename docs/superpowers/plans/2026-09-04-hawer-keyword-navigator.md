@@ -72,12 +72,13 @@ const HAWERKeywordNavigator = {
 建立 `website-widget/tests/hawer-keyword-navigator.test.js`，以 Node VM 載入交付 HTML 中唯一的 `<script>`，並先測試尚不存在的 API：
 
 ```js
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import test from 'node:test';
-import vm from 'node:vm';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const vm = require('node:vm');
 
-const html = fs.readFileSync(new URL('../hawer-keyword-navigator.embed.html', import.meta.url), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'hawer-keyword-navigator.embed.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const sandbox = { module: { exports: {} }, exports: {} };
 vm.runInNewContext(script, sandbox);
@@ -234,7 +235,7 @@ git commit -m "feat: add HAWER floating keyword navigator"
 
 ```js
 test('安裝手冊包含全站貼上、發布前後驗證與維護指引', () => {
-  const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
   assert.match(readme, /全站/);
   assert.match(readme, /發布前/);
   assert.match(readme, /發布後/);
