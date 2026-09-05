@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="鋸寶 AI：鋸片醫生的初步導引小助手">
+  <title>鋸寶 AI｜鋸片醫生</title>
+  <link rel="stylesheet" href="styles.css?v=20260905-zirbao-official">
+</head>
+<body>
+  <main class="zirbao-page">
+    <section class="zirbao-hero" aria-label="鋸寶 AI 助手">
+      <div class="zirbao-brand">
+        <p class="zirbao-eyebrow">HAWER 鋸片醫生</p>
+        <h1>有鋸片問題？<br>問鋸寶就對了！</h1>
+        <p class="zirbao-intro">從選規格、切割困擾到診療方向，鋸寶先幫您找資料；複雜情況由真人技師接手確認。</p>
+        <img class="zirbao-mascot" src="assets/zirbao-mascot-official-cutout.png" alt="鋸寶，鋸片醫生的 AI 小助手">
+      </div>
+
+      <section id="zirbao-chat" class="zirbao-chat" aria-labelledby="zirbao-chat-title">
+        <header class="zirbao-chat-header">
+          <div class="zirbao-avatar" aria-hidden="true">
+            <img class="zirbao-avatar-image" src="assets/zirbao-mascot-official-cutout.png" alt="">
+          </div>
+          <div>
+            <h2 id="zirbao-chat-title">鋸寶</h2>
+            <p>鋸片醫生的 AI 小助手</p>
+          </div>
+        </header>
+
+        <div id="zirbao-results" class="zirbao-results" aria-live="polite">
+          <div class="zirbao-message">
+            <p>嗨！我是鋸寶 👋</p>
+            <p>有鋸片問題嗎？不管是選規格、切不好、聲音太大，都可以先問問我！</p>
+          </div>
+        </div>
+
+        <div class="zirbao-shortcuts" aria-label="常用問題">
+          <button type="button" data-zirbao-shortcut="如何選擇鋸片？">如何選擇鋸片？</button>
+          <button type="button" data-zirbao-shortcut="切割鋁棒要用什麼鋸片？">切割鋁棒</button>
+          <button type="button" data-zirbao-shortcut="切割面有毛邊怎麼辦？">切割面有毛邊</button>
+          <button type="button" data-zirbao-shortcut="我的鋸片需要研磨">鋸片研磨</button>
+        </div>
+
+        <div class="zirbao-input-row">
+          <label class="sr-only" for="zirbao-query">輸入您的問題</label>
+          <input id="zirbao-query" type="search" autocomplete="off" placeholder="輸入您的問題，例如：切鋁管有毛邊">
+          <button id="zirbao-send" type="button" aria-label="送出問題">➜</button>
+        </div>
+
+        <a id="zirbao-line" class="zirbao-line-link" href="https://line.me/ti/p/%40drhawer" target="_blank" rel="noopener">交給 LINE 鋸片醫生確認</a>
+        <p class="zirbao-disclaimer">鋸寶提供初步導引；實際規格與診斷仍須由真人技師依現場條件確認。</p>
+      </section>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
