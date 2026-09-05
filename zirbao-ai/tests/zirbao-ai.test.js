@@ -45,6 +45,13 @@ test('HTML 包含對話窗、快速問題、輸入欄與 LINE 入口', () => {
   assert.match(html, /id="zirbao-line"/);
 });
 
+test('HTML 使用去背後的可愛鋸寶素材，不使用測試版吉祥物', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+  assert.match(html, /assets\/zirbao-mascot-official-cutout\.png/);
+  assert.doesNotMatch(html, /assets\/zirbao-mascot\.png/);
+});
+
 test('README 說明本機預覽、GitHub Pages 路徑與 NAS 搬遷', () => {
   const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
 

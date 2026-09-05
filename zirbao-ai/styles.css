@@ -55,7 +55,7 @@ h1 { margin: 0; color: var(--zirbao-navy); font-size: clamp(34px, 4vw, 58px); li
   line-height: 1.7;
 }
 
-.zirbao-mascot { display: block; width: min(390px, 82vw); height: auto; margin: 18px auto -10px; filter: drop-shadow(0 18px 18px rgba(6, 62, 120, .18)); }
+.zirbao-mascot { display: block; width: min(430px, 88vw); height: auto; margin: 10px auto -18px; filter: drop-shadow(0 18px 18px rgba(6, 62, 120, .18)); }
 
 .zirbao-chat {
   overflow: hidden;
@@ -74,7 +74,8 @@ h1 { margin: 0; color: var(--zirbao-navy); font-size: clamp(34px, 4vw, 58px); li
   background: linear-gradient(120deg, var(--zirbao-navy), var(--zirbao-blue));
 }
 
-.zirbao-avatar { display: grid; width: 48px; height: 48px; place-items: center; border: 3px solid #d8efff; border-radius: 50%; background: #fff; color: var(--zirbao-blue); font-weight: 900; font-size: 22px; }
+.zirbao-avatar { display: grid; width: 52px; height: 52px; place-items: center; overflow: hidden; border: 3px solid #d8efff; border-radius: 50%; background: #fff; }
+.zirbao-avatar-image { width: 78px; max-width: none; transform: translateY(7px); }
 .zirbao-chat-header h2 { margin: 0; font-size: 26px; }
 .zirbao-chat-header p { margin: 3px 0 0; font-size: 13px; }
 
@@ -108,7 +109,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 @media (max-width: 760px) {
   .zirbao-page { padding: 24px 16px; }
   .zirbao-hero { grid-template-columns: 1fr; gap: 22px; }
-  .zirbao-mascot { width: min(220px, 58vw); margin-bottom: -6px; }
+  .zirbao-mascot { width: min(260px, 68vw); margin-bottom: -10px; }
   .zirbao-intro { font-size: 15px; }
   .zirbao-chat { border-radius: 22px; }
 }
