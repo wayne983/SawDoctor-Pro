@@ -13,6 +13,20 @@
     }
   }
 
+  function isTrustedAppsScriptOrigin(value) {
+    try {
+      var url = new URL(String(value));
+      var hostname = url.hostname.toLowerCase();
+      return url.protocol === 'https:' && (
+        hostname === 'script.google.com' ||
+        hostname === 'script.googleusercontent.com' ||
+        /(^|[-.])script\.googleusercontent\.com$/.test(hostname)
+      );
+    } catch (error) {
+      return false;
+    }
+  }
+
   function requestId() {
     return 'zirbao_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
   }
@@ -77,9 +91,8 @@
 
   function createIframeTransport(documentRef, windowRef) {
     var pending = {};
-    var allowedOrigins = ['https://script.google.com', 'https://script.googleusercontent.com'];
     windowRef.addEventListener('message', function (event) {
-      if (allowedOrigins.indexOf(event.origin) === -1 || !event.data || event.data.type !== 'zirbao-ai-reply') return;
+      if (!isTrustedAppsScriptOrigin(event.origin) || !event.data || event.data.type !== 'zirbao-ai-reply') return;
       var request = pending[event.data.requestId];
       if (!request) return;
       windowRef.clearTimeout(request.timer);
