@@ -43,6 +43,9 @@ test('HTML 包含對話窗、快速問題、輸入欄與 LINE 入口', () => {
   assert.match(html, /data-zirbao-shortcut="如何選擇鋸片？"/);
   assert.match(html, /id="zirbao-query"/);
   assert.match(html, /id="zirbao-line"/);
+  assert.match(html, /<script src="config\.js"><\/script>/);
+  assert.match(html, /id="zirbao-ai-frame"/);
+  assert.match(html, /zirbao-client\.js/);
 });
 
 test('HTML 使用去背後的可愛鋸寶素材，不使用測試版吉祥物', () => {
@@ -50,6 +53,12 @@ test('HTML 使用去背後的可愛鋸寶素材，不使用測試版吉祥物', 
 
   assert.match(html, /assets\/zirbao-mascot-official-cutout\.png/);
   assert.doesNotMatch(html, /assets\/zirbao-mascot\.png/);
+});
+
+test('前端只用文字節點渲染，且不包含 API Key', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.match(source, /textContent/);
+  assert.doesNotMatch(source, /OPENAI_API_KEY/);
 });
 
 test('README 說明本機預覽、GitHub Pages 路徑與 NAS 搬遷', () => {

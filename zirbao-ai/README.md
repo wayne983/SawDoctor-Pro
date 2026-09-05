@@ -2,6 +2,8 @@
 
 這是獨立的靜態測試網站，不會修改既有鋸片醫生系統或舊 HAWER 官網。
 
+`config.js` 的 `endpoint` 為空時，鋸寶維持本機關鍵字導覽；填入已部署的 Google Apps Script `/exec` 網址後，才會以聊天方式呼叫 AI。API key 僅存放在 Apps Script 的 `OPENAI_API_KEY` 指令碼屬性，絕不可寫入此目錄或 GitHub。
+
 ## 功能範圍
 
 - 鋸寶吉祥物與藍白對話式介面。
@@ -24,7 +26,7 @@ python -m http.server 8080 --directory zirbao-ai
 ## 自動測試
 
 ```powershell
-node --test zirbao-ai/tests/zirbao-ai.test.js
+node --test zirbao-ai/tests/*.test.js
 ```
 
 ## GitHub Pages 測試
@@ -39,4 +41,4 @@ node --test zirbao-ai/tests/zirbao-ai.test.js
 
 確認介面與導引內容後，可將整個 `zirbao-ai` 資料夾上傳至 NAS 的 HTTPS 網域。正式連線應透過網域、HTTPS 憑證與反向代理或安全通道提供服務，不應直接公開 NAS 管理介面。
 
-若未來要加入真正的生成式 AI，應另外建立受保護的後端 API；不要把模型金鑰或客戶對話資料放進靜態前端。
+已建立的 Apps Script 後端部署步驟請看 [`../apps-script/zirbao-ai/DEPLOY.md`](../apps-script/zirbao-ai/DEPLOY.md)。不要把模型金鑰或客戶對話資料放進靜態前端。
