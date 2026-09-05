@@ -44,3 +44,11 @@ test('HTML 包含對話窗、快速問題、輸入欄與 LINE 入口', () => {
   assert.match(html, /id="zirbao-query"/);
   assert.match(html, /id="zirbao-line"/);
 });
+
+test('README 說明本機預覽、GitHub Pages 路徑與 NAS 搬遷', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+
+  assert.match(readme, /python -m http.server/);
+  assert.match(readme, /\/zirbao-ai\//);
+  assert.match(readme, /NAS/);
+});
