@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const appsRoot = path.join(repoRoot, 'apps-script', 'zirbao-ai');
+const deployGuidePath = path.join(appsRoot, 'DEPLOY.md');
 
 function validOpenAiResponse() {
   return JSON.stringify({
@@ -81,4 +82,12 @@ test('callback output targets only the public GitHub Pages origin', () => {
   const output = context.ZirbaoAiBackend.callbackOutput_({ type: 'zirbao-ai-reply', requestId: 'r-4', ok: true });
   assert.match(output.html, /https:\/\/wayne983\.github\.io/);
   assert.doesNotMatch(output.html, /test-key/);
+});
+
+test('deployment guide documents property, anonymous web app access, and endpoint configuration without exposing a key', () => {
+  const guide = fs.readFileSync(deployGuidePath, 'utf8');
+  assert.match(guide, /OPENAI_API_KEY/);
+  assert.match(guide, /任何人/);
+  assert.match(guide, /\/exec/);
+  assert.doesNotMatch(guide, /sk-[A-Za-z0-9]/);
 });
