@@ -122,9 +122,80 @@
     answer
   };
 
+  function createElement(documentRef, tag, className, text) {
+    const item = documentRef.createElement(tag);
+    if (className) item.className = className;
+    if (text) item.textContent = text;
+    return item;
+  }
+
+  function initializeZirbaoApp(documentRef) {
+    const input = documentRef.getElementById('zirbao-query');
+    const send = documentRef.getElementById('zirbao-send');
+    const results = documentRef.getElementById('zirbao-results');
+    const lineLink = documentRef.getElementById('zirbao-line');
+
+    if (!input || !send || !results || !lineLink) return;
+
+    function renderReply(query) {
+      const reply = answer(query);
+      results.textContent = '';
+
+      const message = createElement(documentRef, 'div', 'zirbao-message', reply.message);
+      if (reply.mode === 'danger') message.classList.add('zirbao-message-danger');
+      results.append(message);
+
+      const questions = createElement(documentRef, 'div', 'zirbao-questions');
+      questions.textContent = reply.questions.join('　');
+      results.append(questions);
+
+      if (reply.cards.length) {
+        const cards = createElement(documentRef, 'div', 'zirbao-cards');
+        reply.cards.forEach((card) => {
+          const link = createElement(documentRef, 'a', 'zirbao-card');
+          const title = createElement(documentRef, 'strong', '', card.title);
+          const summary = createElement(documentRef, 'span', '', card.summary);
+          link.href = card.url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.append(title, summary);
+          cards.append(link);
+        });
+        results.append(cards);
+      }
+
+      lineLink.href = reply.lineUrl;
+    }
+
+    send.addEventListener('click', () => renderReply(input.value));
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        renderReply(input.value);
+      }
+    });
+
+    documentRef.querySelectorAll('[data-zirbao-shortcut]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const query = button.getAttribute('data-zirbao-shortcut') || '';
+        input.value = query;
+        renderReply(query);
+      });
+    });
+  }
+
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { ZirbaoGuide };
   }
 
   global.ZirbaoGuide = ZirbaoGuide;
+  global.initializeZirbaoApp = initializeZirbaoApp;
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => initializeZirbaoApp(document), { once: true });
+    } else {
+      initializeZirbaoApp(document);
+    }
+  }
 })(typeof window !== 'undefined' ? window : globalThis);
