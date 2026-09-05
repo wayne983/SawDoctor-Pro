@@ -136,9 +136,20 @@
     const lineLink = documentRef.getElementById('zirbao-line');
 
     if (!input || !send || !results || !lineLink) return;
+    const client = global.ZirbaoClient
+      ? global.ZirbaoClient.createClient(
+        global.ZIRBAO_AI_CONFIG || { endpoint: '' },
+        answer,
+        global.ZirbaoClient.createIframeTransport(documentRef, global)
+      )
+      : null;
 
-    function renderReply(query) {
-      const reply = answer(query);
+    function renderLoading() {
+      results.textContent = '';
+      results.append(createElement(documentRef, 'div', 'zirbao-message zirbao-message-loading', '鋸寶正在整理資料…'));
+    }
+
+    function renderReply(reply) {
       results.textContent = '';
 
       const message = createElement(documentRef, 'div', 'zirbao-message', reply.message);
@@ -146,7 +157,7 @@
       results.append(message);
 
       const questions = createElement(documentRef, 'div', 'zirbao-questions');
-      questions.textContent = reply.questions.join('　');
+      questions.textContent = (reply.followUpQuestions || reply.questions || []).join('　');
       results.append(questions);
 
       if (reply.cards.length) {
@@ -167,11 +178,22 @@
       lineLink.href = reply.lineUrl;
     }
 
-    send.addEventListener('click', () => renderReply(input.value));
+    async function submitQuery(query) {
+      const question = String(query || '');
+      renderLoading();
+      send.disabled = true;
+      try {
+        renderReply(client ? await client.sendQuestion(question) : answer(question));
+      } finally {
+        send.disabled = false;
+      }
+    }
+
+    send.addEventListener('click', () => submitQuery(input.value));
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        renderReply(input.value);
+        submitQuery(input.value);
       }
     });
 
@@ -179,7 +201,7 @@
       button.addEventListener('click', () => {
         const query = button.getAttribute('data-zirbao-shortcut') || '';
         input.value = query;
-        renderReply(query);
+        submitQuery(query);
       });
     });
   }
