@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const { ZirbaoGuide } = require('../app.js');
@@ -32,4 +34,13 @@ test('非 HAWER HTTPS 網址不通過驗證', () => {
   assert.equal(ZirbaoGuide.isTrustedHawerUrl('https://example.com'), false);
   assert.equal(ZirbaoGuide.isTrustedHawerUrl('http://www.hawer-knife.com/FAQ.asp'), false);
   assert.equal(ZirbaoGuide.isTrustedHawerUrl('https://www.hawer-knife.com/FAQ.asp'), true);
+});
+
+test('HTML 包含對話窗、快速問題、輸入欄與 LINE 入口', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+  assert.match(html, /id="zirbao-chat"/);
+  assert.match(html, /data-zirbao-shortcut="如何選擇鋸片？"/);
+  assert.match(html, /id="zirbao-query"/);
+  assert.match(html, /id="zirbao-line"/);
 });
