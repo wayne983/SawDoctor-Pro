@@ -53,3 +53,30 @@ test('client never requests AI for dangerous question', async () => {
   assert.equal(reply.source, 'local-safety');
   assert.equal(called, false);
 });
+
+test('iframe transport accepts the Apps Script sandbox subdomain callback', async () => {
+  let messageHandler;
+  const frame = { name: 'zirbao-ai-frame' };
+  const documentRef = {
+    getElementById: () => frame,
+    createElement: () => ({ style: {}, append() {}, remove() {}, submit() {} }),
+    body: { append() {} }
+  };
+  const windowRef = {
+    addEventListener: (type, handler) => { if (type === 'message') messageHandler = handler; },
+    setTimeout: () => 1,
+    clearTimeout: () => {}
+  };
+  const transport = ZirbaoClient.createIframeTransport(documentRef, windowRef);
+  const pending = transport({ requestId: 'sandbox-callback' }, 'https://script.google.com/macros/s/example/exec');
+  messageHandler({
+    origin: 'https://n-example-script.googleusercontent.com',
+    data: { type: 'zirbao-ai-reply', requestId: 'sandbox-callback', ok: true, reply: {} }
+  });
+  const reply = await Promise.race([
+    pending,
+    new Promise((resolve) => setTimeout(() => resolve(null), 20))
+  ]);
+  assert.ok(reply);
+  assert.equal(reply.ok, true);
+});
