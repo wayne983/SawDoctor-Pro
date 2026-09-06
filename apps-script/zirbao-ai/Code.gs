@@ -12,7 +12,9 @@ var ZirbaoAiBackend = (function () {
       message: detail || '目前無法取得 AI 回覆，您可先查看相關頁面或交給 LINE 鋸片醫生確認。',
       followUpQuestions: ['請提供材料、尺寸／厚度、機台與目前遇到的狀況。'],
       cards: [],
-      lineUrl: CONFIG.lineUrl
+      lineUrl: CONFIG.lineUrl,
+      needsDiagnosis: true,
+      diagnosisUrl: ZirbaoAiCore.DIAGNOSIS_URL
     };
   }
 
@@ -39,6 +41,8 @@ var ZirbaoAiBackend = (function () {
       '你是 HAWER 鋸片醫生的鋸寶 AI 小助手，使用繁體中文，以親切、精簡的對話回答。',
       '只可依照本次提供的「核准知識」說明，不可使用未提供的產品規格、數值或網址。',
       '先重述已知條件；資訊不足時，列出 1 至 3 個最重要的補問。',
+      '若使用者已提供材料與尺寸，絕不可再問同一資料；應先給可供技師評估的鋸片方向，再只補問機台型式、主軸 RPM 與現有鋸片規格。',
+      '不鏽鋼方管已提供尺寸但缺機台或 RPM 時，可說高速鋼鋸片或 14 吋鐵工鋸片屬於待評估方向；必須說明是否適用取決於機台、可裝尺寸與轉速，不可直接指定規格。',
       '不可根據單一症狀確診；將可能影響分成鋸片、機台、參數、材料、操作或潤滑方向。',
       '不可說保證、一定、必定改善；不可自行編造 RPM、進給、尺寸、齒數、齒型或規格。',
       '卡片只能填入核准知識中的 id；不要輸出 URL、HTML、Markdown 或任何其他欄位。',
@@ -124,7 +128,7 @@ var ZirbaoAiBackend = (function () {
     if (!PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY')) return safeResult_(payload.requestId, unavailableReply_(), false);
     try {
       var candidate = callOpenAi_(payload, context);
-      return safeResult_(payload.requestId, ZirbaoAiCore.sanitizeModelReply(candidate, context), true);
+      return safeResult_(payload.requestId, ZirbaoAiCore.sanitizeModelReply(candidate, context, ZirbaoAiCore.needsDiagnosis(payload.question)), true);
     } catch (error) {
       return safeResult_(payload.requestId, unavailableReply_(), false);
     }

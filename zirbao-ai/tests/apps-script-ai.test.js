@@ -67,6 +67,15 @@ test('missing API key returns a safe unavailable message', () => {
   assert.match(result.reply.message, /無法取得 AI 回覆/);
 });
 
+test('stainless tube question with dimensions but no machine or RPM returns diagnosis guidance without OpenAI', () => {
+  const context = loadAppsScript({ OPENAI_API_KEY: 'test-key' });
+  const result = context.ZirbaoAiBackend.answer_({ requestId: 'r-stainless', question: '不鏽鋼方管 50*50*2mm 推薦', history: [] });
+  assert.equal(result.ok, true);
+  assert.equal(result.reply.needsDiagnosis, true);
+  assert.match(result.reply.message, /高速鋼鋸片/);
+  assert.equal(context.fetchCalls.length, 0);
+});
+
 test('general question sends only retrieved approved knowledge to Responses API', () => {
   const context = loadAppsScript({ OPENAI_API_KEY: 'test-key' });
   const result = context.ZirbaoAiBackend.answer_({ requestId: 'r-3', question: '14 吋切斷機裁切薄壁鋁管', history: [] });

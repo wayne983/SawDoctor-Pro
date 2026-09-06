@@ -3,6 +3,7 @@
 
   const SITE_HOSTNAME = 'www.hawer-knife.com';
   const LINE_DOCTOR_URL = 'https://line.me/ti/p/%40drhawer';
+  const DIAGNOSIS_URL = 'https://www.hawer-knife.com/Product_sCats.asp?productscatid=833957866333';
   const DANGER_KEYWORDS = ['裂紋', '裂痕', '缺齒', '掉齒', '變形', '劇烈震動', '異常震動', '冒煙', '火花'];
 
   const PAGE_INDEX = [
@@ -85,7 +86,9 @@
         message: '嗨！我是鋸寶。告訴我您要切什麼材料，或遇到什麼狀況，我會先幫您找方向。',
         questions: ['材料是什麼？', '工件尺寸或厚度是多少？', '使用什麼機台？'],
         cards: [],
-        lineUrl: LINE_DOCTOR_URL
+        lineUrl: LINE_DOCTOR_URL,
+        needsDiagnosis: false,
+        diagnosisUrl: ''
       };
     }
 
@@ -95,28 +98,42 @@
         message: '出現可能影響安全的異常時，請先停機檢查。此處僅能提供初步導引，請交由鋸片醫生真人技師確認。',
         questions: ['請先停止機台運轉。', '請保留鋸片與異常位置照片供技師確認。'],
         cards: [],
-        lineUrl: LINE_DOCTOR_URL
+        lineUrl: LINE_DOCTOR_URL,
+        needsDiagnosis: false,
+        diagnosisUrl: ''
       };
     }
 
     const cards = matchingCards(normalizedQuery);
-    const hasMachine = /機台|切斷機|圓鋸機|鋸床/.test(normalizedQuery);
+    const diagnosisNeeded = needsDiagnosis(normalizedQuery);
+    if (/不鏽鋼/.test(normalizedQuery) && /方管|管/.test(normalizedQuery) && hasDimensions(normalizedQuery) && diagnosisNeeded) {
+      return {
+        mode: 'guide',
+        message: '您已提供不鏽鋼方管與截面尺寸。可先由鋸片醫生評估高速鋼鋸片或 14 吋鐵工鋸片的方向；實際是否適用仍取決於機台型式、可裝尺寸與主軸轉速，不能直接指定規格。',
+        questions: missingConditionQuestions(normalizedQuery),
+        cards: [],
+        lineUrl: LINE_DOCTOR_URL,
+        needsDiagnosis: true,
+        diagnosisUrl: DIAGNOSIS_URL
+      };
+    }
 
     return {
       mode: 'guide',
       message: cards.length
         ? '我先為您找到以下相關產品或服務。實際選用仍須依材料、機台與現場條件確認。'
-        : '我還需要多一點資料，才能幫您縮小方向。您也可以交給真人技師確認。',
-      questions: hasMachine
-        ? ['請補充工件外徑、厚度或實際切割用途。']
-        : ['請補充使用的機台、工件尺寸／厚度與切割用途。'],
+        : '我還需要多一點資料，才能幫您縮小方向。',
+      questions: missingConditionQuestions(normalizedQuery),
       cards,
-      lineUrl: LINE_DOCTOR_URL
+      lineUrl: LINE_DOCTOR_URL,
+      needsDiagnosis: diagnosisNeeded,
+      diagnosisUrl: diagnosisNeeded ? DIAGNOSIS_URL : ''
     };
   }
 
   const ZirbaoGuide = {
     LINE_DOCTOR_URL,
+    DIAGNOSIS_URL,
     normalizeText,
     isTrustedHawerUrl,
     answer
@@ -127,6 +144,19 @@
     if (className) item.className = className;
     if (text) item.textContent = text;
     return item;
+  }
+
+  function hasMaterial(query) { return /不鏽鋼|鋼|鐵|鋁|銅|木材|木工|塑膠|塑料|壓克力/.test(query); }
+  function hasDimensions(query) { return /\d+(?:\.\d+)?\s*(?:x|\*)\s*\d+(?:\.\d+)?(?:\s*(?:x|\*)\s*\d+(?:\.\d+)?)?\s*(?:mm|毫米)?/.test(query); }
+  function hasMachine(query) { return /機台|切斷機|圓鋸機|鋸床|冷鋸|乾切|鐵工/.test(query); }
+  function hasRpm(query) { return /\d{2,5}\s*(?:rpm|轉\/分|轉每分|轉)/.test(query); }
+  function needsDiagnosis(query) { return !(hasMaterial(query) && hasDimensions(query) && hasMachine(query) && hasRpm(query)); }
+  function missingConditionQuestions(query) {
+    const questions = [];
+    if (!hasMachine(query)) questions.push('請提供使用的機台型式，例如冷鋸機、乾切機、圓鋸機或切斷機。');
+    if (!hasRpm(query)) questions.push('請提供機台主軸轉速約多少 RPM。');
+    if (!hasMaterial(query) || !hasDimensions(query)) questions.push('請補充材料與工件尺寸／厚度。');
+    return questions.slice(0, 3);
   }
 
   function createConversation(client, fallback) {
@@ -211,6 +241,14 @@
           cards.append(link);
         });
         turn.append(cards);
+      }
+
+      if (reply.needsDiagnosis && isTrustedHawerUrl(reply.diagnosisUrl)) {
+        const diagnosisLink = createElement(documentRef, 'a', 'zirbao-diagnosis-link', '填寫鋸片診療資料');
+        diagnosisLink.href = reply.diagnosisUrl;
+        diagnosisLink.target = '_blank';
+        diagnosisLink.rel = 'noopener';
+        turn.append(diagnosisLink);
       }
 
       results.append(turn);

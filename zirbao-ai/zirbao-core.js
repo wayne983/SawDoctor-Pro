@@ -3,6 +3,7 @@
 
   var SITE_HOSTNAME = 'www.hawer-knife.com';
   var LINE_DOCTOR_URL = 'https://line.me/ti/p/%40drhawer';
+  var DIAGNOSIS_URL = 'https://www.hawer-knife.com/Product_sCats.asp?productscatid=833957866333';
   var DANGER_KEYWORDS = ['裂紋', '裂痕', '缺齒', '掉齒', '連續缺齒', '變形', '劇烈震動', '異常震動', '冒煙', '火花'];
 
   function text(value) {
@@ -37,8 +38,25 @@
       message: '出現可能影響安全的異常時，請先停機檢查。此處僅能提供初步導引，請交由鋸片醫生真人技師確認。',
       followUpQuestions: ['請先停止機台運轉。', '請保留鋸片與異常位置照片供技師確認。'],
       cards: [],
-      lineUrl: LINE_DOCTOR_URL
+      lineUrl: LINE_DOCTOR_URL,
+      needsDiagnosis: false,
+      diagnosisUrl: ''
     };
+  }
+
+  function hasMaterial(question) { return /不鏽鋼|鋼|鐵|鋁|銅|木材|木工|塑膠|塑料|壓克力/.test(normalizeText(question)); }
+  function hasDimensions(question) { return /\d+(?:\.\d+)?\s*(?:x|\*)\s*\d+(?:\.\d+)?(?:\s*(?:x|\*)\s*\d+(?:\.\d+)?)?\s*(?:mm|毫米)?/.test(normalizeText(question)); }
+  function hasMachine(question) { return /機台|切斷機|圓鋸機|鋸床|冷鋸|乾切|鐵工/.test(normalizeText(question)); }
+  function hasRpm(question) { return /\d{2,5}\s*(?:rpm|轉\/分|轉每分|轉)/.test(normalizeText(question)); }
+  function needsDiagnosis(question) { return !isDangerous(question) && !(hasMaterial(question) && hasDimensions(question) && hasMachine(question) && hasRpm(question)); }
+  function isStainlessTubeWithDimensions(question) { return /不鏽鋼/.test(normalizeText(question)) && /方管|管/.test(normalizeText(question)) && hasDimensions(question); }
+
+  function missingConditionQuestions(question) {
+    var questions = [];
+    if (!hasMachine(question)) questions.push('請提供使用的機台型式，例如冷鋸機、乾切機、圓鋸機或切斷機。');
+    if (!hasRpm(question)) questions.push('請提供機台主軸轉速約多少 RPM。');
+    if (!hasMaterial(question) || !hasDimensions(question)) questions.push('請補充材料與工件尺寸／厚度。');
+    return questions.slice(0, 3);
   }
 
   function recordScore(question, record) {
@@ -73,14 +91,28 @@
     if (isDangerous(question)) return createSafetyReply();
     var records = retrieve(question, knowledge);
     var questions = records.flatMap(function (record) { return record.followUpQuestions || []; }).filter(Boolean).slice(0, 3);
+    var diagnosisNeeded = needsDiagnosis(question);
+    if (isStainlessTubeWithDimensions(question) && diagnosisNeeded) {
+      return {
+        mode: 'guide',
+        message: '您已提供不鏽鋼方管與截面尺寸。可先由鋸片醫生評估高速鋼鋸片或 14 吋鐵工鋸片的方向；實際是否適用仍取決於機台型式、可裝尺寸與主軸轉速，不能直接指定規格。',
+        followUpQuestions: missingConditionQuestions(question),
+        cards: [],
+        lineUrl: LINE_DOCTOR_URL,
+        needsDiagnosis: true,
+        diagnosisUrl: DIAGNOSIS_URL
+      };
+    }
     return {
       mode: 'guide',
       message: records.length
         ? '我先依您提供的條件整理初步方向；實際規格仍要確認材料、機台與現場條件，不能只憑一句話決定。'
-        : '我還需要多一點資料，才能幫您縮小方向。請提供材料、尺寸或厚度、機台與目前遇到的狀況。',
-      followUpQuestions: questions.length ? questions : ['請提供使用的機台、工件尺寸／厚度與切割用途。'],
+        : '我還需要多一點資料，才能幫您縮小方向。',
+      followUpQuestions: questions.length ? questions : missingConditionQuestions(question),
       cards: cardsFromRecords(records),
-      lineUrl: LINE_DOCTOR_URL
+      lineUrl: LINE_DOCTOR_URL,
+      needsDiagnosis: diagnosisNeeded,
+      diagnosisUrl: diagnosisNeeded ? DIAGNOSIS_URL : ''
     };
   }
 
@@ -96,7 +128,7 @@
     return invalidHistory ? { ok: false, error: '歷史訊息內容格式錯誤' } : { ok: true };
   }
 
-  function sanitizeModelReply(candidate, knowledge) {
+  function sanitizeModelReply(candidate, knowledge, diagnosisNeeded) {
     var byId = {};
     (knowledge || []).forEach(function (record) { if (record && record.status === 'approved' && isTrustedHawerUrl(record.sourceUrl)) byId[record.id] = record; });
     var rawCards = candidate && Array.isArray(candidate.cards) ? candidate.cards : [];
@@ -110,16 +142,20 @@
       message: text(candidate && candidate.message).slice(0, 1800) || '我先幫您整理目前可確認的方向，仍需要補充條件才能進一步判斷。',
       followUpQuestions: questions.map(text).filter(Boolean).slice(0, 3),
       cards: cardsFromRecords(cards),
-      lineUrl: LINE_DOCTOR_URL
+      lineUrl: LINE_DOCTOR_URL,
+      needsDiagnosis: diagnosisNeeded === true,
+      diagnosisUrl: diagnosisNeeded === true ? DIAGNOSIS_URL : ''
     };
   }
 
   var api = Object.freeze({
     SITE_HOSTNAME: SITE_HOSTNAME,
     LINE_DOCTOR_URL: LINE_DOCTOR_URL,
+    DIAGNOSIS_URL: DIAGNOSIS_URL,
     normalizeText: normalizeText,
     isTrustedHawerUrl: isTrustedHawerUrl,
     isDangerous: isDangerous,
+    needsDiagnosis: needsDiagnosis,
     createSafetyReply: createSafetyReply,
     retrieve: retrieve,
     fallbackReply: fallbackReply,

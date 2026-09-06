@@ -41,6 +41,26 @@ test('client accepts a matching Apps Script callback and renders trusted cards',
   assert.match(reply.cards[0].url, /^https:\/\/www\.hawer-knife\.com\//);
 });
 
+test('client only enables the known diagnosis form link when the reply needs diagnosis', () => {
+  const reply = ZirbaoClient.sanitizeReply({
+    message: '請補充機台與 RPM。',
+    needsDiagnosis: true,
+    diagnosisUrl: 'https://example.com/not-trusted'
+  });
+  assert.equal(reply.needsDiagnosis, true);
+  assert.match(reply.diagnosisUrl, /^https:\/\/www\.hawer-knife\.com\//);
+});
+
+test('incomplete question uses local diagnosis guidance before calling the AI endpoint', async () => {
+  let transportCalls = 0;
+  const client = ZirbaoClient.createClient({ endpoint: 'https://script.google.com/macros/s/example/exec' }, (question) => ({
+    mode: 'guide', message: question, followUpQuestions: [], cards: [], needsDiagnosis: true
+  }), async () => { transportCalls += 1; return {}; });
+  const reply = await client.sendQuestion('不鏽鋼方管 50*50*2mm 推薦');
+  assert.equal(reply.source, 'local-diagnosis');
+  assert.equal(transportCalls, 0);
+});
+
 test('client never requests AI for dangerous question', async () => {
   let called = false;
   const client = ZirbaoClient.createClient(

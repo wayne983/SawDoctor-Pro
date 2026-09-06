@@ -3,6 +3,7 @@
 
   var HAWER_HOSTNAME = 'www.hawer-knife.com';
   var LINE_DOCTOR_URL = 'https://line.me/ti/p/%40drhawer';
+  var DIAGNOSIS_URL = 'https://www.hawer-knife.com/Product_sCats.asp?productscatid=833957866333';
 
   function isTrustedHawerUrl(value) {
     try {
@@ -44,7 +45,9 @@
       cards: Array.isArray(source.cards) ? source.cards.filter(function (card) {
         return card && typeof card.title === 'string' && typeof card.summary === 'string' && isTrustedHawerUrl(card.url);
       }).slice(0, 3) : [],
-      lineUrl: LINE_DOCTOR_URL
+      lineUrl: LINE_DOCTOR_URL,
+      needsDiagnosis: source.needsDiagnosis === true,
+      diagnosisUrl: source.needsDiagnosis === true ? DIAGNOSIS_URL : ''
     };
   }
 
@@ -67,8 +70,14 @@
         addHistory('assistant', safety.message);
         return Object.assign({ source: 'local-safety' }, safety);
       }
+      var diagnosis = sanitizeReply(fallback(input));
+      if (diagnosis.needsDiagnosis) {
+        addHistory('user', input);
+        addHistory('assistant', diagnosis.message);
+        return Object.assign({ source: 'local-diagnosis' }, diagnosis);
+      }
       if (!endpoint || typeof transport !== 'function') {
-        var local = sanitizeReply(fallback(input));
+        var local = diagnosis;
         addHistory('user', input);
         addHistory('assistant', local.message);
         return Object.assign({ source: 'local-fallback' }, local);
