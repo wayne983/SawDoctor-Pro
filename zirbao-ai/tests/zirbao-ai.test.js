@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
-const { ZirbaoGuide } = require('../app.js');
+const { ZirbaoGuide, ZirbaoChat } = require('../app.js');
 
 test('危險問題只回傳停機與真人確認，不推薦產品', () => {
   const reply = ZirbaoGuide.answer('鋁管切到一半鋸片裂紋又劇烈震動');
@@ -53,6 +53,23 @@ test('HTML 使用去背後的可愛鋸寶素材，不使用測試版吉祥物', 
 
   assert.match(html, /assets\/zirbao-mascot-official-cutout\.png/);
   assert.doesNotMatch(html, /assets\/zirbao-mascot\.png/);
+});
+
+test('聊天紀錄依序保留使用者問題與鋸寶回覆', async () => {
+  const replies = [
+    { mode: 'answer', message: '請先提供鋁管壁厚。', followUpQuestions: [], cards: [], lineUrl: 'https://line.me/ti/p/%40drhawer' },
+    { mode: 'answer', message: '收到，接著請提供機台型號。', followUpQuestions: [], cards: [], lineUrl: 'https://line.me/ti/p/%40drhawer' }
+  ];
+  const chat = ZirbaoChat.createConversation({
+    sendQuestion: async () => replies.shift()
+  }, ZirbaoGuide.answer);
+
+  await chat.ask('我要切薄壁鋁管');
+  await chat.ask('壁厚 1.5 mm');
+
+  assert.deepEqual(chat.turns().map((turn) => turn.role), ['user', 'assistant', 'user', 'assistant']);
+  assert.equal(chat.turns()[0].text, '我要切薄壁鋁管');
+  assert.equal(chat.turns()[3].reply.message, '收到，接著請提供機台型號。');
 });
 
 test('前端只用文字節點渲染，且不包含 API Key', () => {
