@@ -129,6 +129,23 @@
     return item;
   }
 
+  function createConversation(client, fallback) {
+    const turns = [];
+
+    async function ask(question) {
+      const text = String(question || '').trim();
+      turns.push({ role: 'user', text });
+      const reply = client ? await client.sendQuestion(text) : fallback(text);
+      turns.push({ role: 'assistant', reply });
+      return reply;
+    }
+
+    return Object.freeze({
+      ask,
+      turns: () => turns.slice()
+    });
+  }
+
   function initializeZirbaoApp(documentRef) {
     const input = documentRef.getElementById('zirbao-query');
     const send = documentRef.getElementById('zirbao-send');
@@ -144,21 +161,42 @@
       )
       : null;
 
+    function scrollToLatest() {
+      results.scrollTop = results.scrollHeight;
+    }
+
+    function createTurn(role) {
+      return createElement(documentRef, 'article', `zirbao-turn zirbao-turn-${role}`);
+    }
+
+    function renderUser(question) {
+      const turn = createTurn('user');
+      turn.append(createElement(documentRef, 'div', 'zirbao-message', question));
+      results.append(turn);
+      scrollToLatest();
+    }
+
     function renderLoading() {
-      results.textContent = '';
-      results.append(createElement(documentRef, 'div', 'zirbao-message zirbao-message-loading', '鋸寶正在整理資料…'));
+      const turn = createTurn('assistant');
+      turn.append(createElement(documentRef, 'div', 'zirbao-message zirbao-message-loading', '鋸寶正在整理資料…'));
+      results.append(turn);
+      scrollToLatest();
+      return turn;
     }
 
     function renderReply(reply) {
-      results.textContent = '';
+      const turn = createTurn('assistant');
 
       const message = createElement(documentRef, 'div', 'zirbao-message', reply.message);
       if (reply.mode === 'danger') message.classList.add('zirbao-message-danger');
-      results.append(message);
+      turn.append(message);
 
-      const questions = createElement(documentRef, 'div', 'zirbao-questions');
-      questions.textContent = (reply.followUpQuestions || reply.questions || []).join('　');
-      results.append(questions);
+      const followUps = reply.followUpQuestions || reply.questions || [];
+      if (followUps.length) {
+        const questions = createElement(documentRef, 'div', 'zirbao-questions');
+        questions.textContent = followUps.join('　');
+        turn.append(questions);
+      }
 
       if (reply.cards.length) {
         const cards = createElement(documentRef, 'div', 'zirbao-cards');
@@ -172,20 +210,34 @@
           link.append(title, summary);
           cards.append(link);
         });
-        results.append(cards);
+        turn.append(cards);
       }
 
+      results.append(turn);
       lineLink.href = reply.lineUrl;
+      scrollToLatest();
     }
 
+    const conversation = createConversation(client, answer);
+
     async function submitQuery(query) {
-      const question = String(query || '');
-      renderLoading();
+      const question = String(query || '').trim();
+      if (!question) {
+        input.focus();
+        return;
+      }
+      renderUser(question);
+      input.value = '';
+      const loading = renderLoading();
       send.disabled = true;
       try {
-        renderReply(client ? await client.sendQuestion(question) : answer(question));
+        const reply = await conversation.ask(question);
+        loading.remove();
+        renderReply(reply);
       } finally {
+        if (loading.isConnected) loading.remove();
         send.disabled = false;
+        input.focus();
       }
     }
 
@@ -207,10 +259,11 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ZirbaoGuide };
+    module.exports = { ZirbaoGuide, ZirbaoChat: { createConversation } };
   }
 
   global.ZirbaoGuide = ZirbaoGuide;
+  global.ZirbaoChat = { createConversation };
   global.initializeZirbaoApp = initializeZirbaoApp;
 
   if (typeof document !== 'undefined') {
