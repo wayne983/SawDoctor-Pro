@@ -3,6 +3,7 @@
 
   var HAWER_HOSTNAME = 'www.hawer-knife.com';
   var LINE_DOCTOR_URL = 'https://line.me/ti/p/%40drhawer';
+  var DIAGNOSIS_URL = 'https://www.hawer-knife.com/Product_sCats.asp?productscatid=833957866333';
 
   function isTrustedHawerUrl(value) {
     try {
@@ -44,7 +45,9 @@
       cards: Array.isArray(source.cards) ? source.cards.filter(function (card) {
         return card && typeof card.title === 'string' && typeof card.summary === 'string' && isTrustedHawerUrl(card.url);
       }).slice(0, 3) : [],
-      lineUrl: LINE_DOCTOR_URL
+      lineUrl: LINE_DOCTOR_URL,
+      needsDiagnosis: source.needsDiagnosis === true,
+      diagnosisUrl: source.needsDiagnosis === true ? DIAGNOSIS_URL : ''
     };
   }
 

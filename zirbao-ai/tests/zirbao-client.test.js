@@ -41,6 +41,16 @@ test('client accepts a matching Apps Script callback and renders trusted cards',
   assert.match(reply.cards[0].url, /^https:\/\/www\.hawer-knife\.com\//);
 });
 
+test('client only enables the known diagnosis form link when the reply needs diagnosis', () => {
+  const reply = ZirbaoClient.sanitizeReply({
+    message: '請補充機台與 RPM。',
+    needsDiagnosis: true,
+    diagnosisUrl: 'https://example.com/not-trusted'
+  });
+  assert.equal(reply.needsDiagnosis, true);
+  assert.match(reply.diagnosisUrl, /^https:\/\/www\.hawer-knife\.com\//);
+});
+
 test('client never requests AI for dangerous question', async () => {
   let called = false;
   const client = ZirbaoClient.createClient(

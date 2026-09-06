@@ -72,6 +72,15 @@ test('聊天紀錄依序保留使用者問題與鋸寶回覆', async () => {
   assert.equal(chat.turns()[3].reply.message, '收到，接著請提供機台型號。');
 });
 
+test('本機鋸寶保留不鏽鋼方管已知條件並提供診療填寫連結', () => {
+  const reply = ZirbaoGuide.answer('不鏽鋼方管 50*50*2mm 推薦');
+  assert.match(reply.message, /高速鋼鋸片/);
+  assert.equal(reply.needsDiagnosis, true);
+  assert.match(reply.diagnosisUrl, /productscatid=833957866333/);
+  assert.ok(reply.questions.some((item) => /機台/.test(item)));
+  assert.ok(reply.questions.some((item) => /RPM/.test(item)));
+});
+
 test('前端只用文字節點渲染，且不包含 API Key', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   assert.match(source, /textContent/);

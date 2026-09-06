@@ -26,6 +26,22 @@ test('the assistant summary asks for missing conditions instead of inventing 120
   assert.ok(reply.followUpQuestions.some((item) => /壁厚/.test(item)));
 });
 
+test('不鏽鋼方管已給尺寸但缺機台與轉速時，提供初步方向並導向診療填寫', () => {
+  const reply = ZirbaoCore.fallbackReply('請問鋸不鏽鋼方管 50*50*2mm 推薦', knowledge);
+  assert.match(reply.message, /高速鋼鋸片/);
+  assert.match(reply.message, /14 吋鐵工鋸片/);
+  assert.ok(reply.followUpQuestions.some((item) => /機台/.test(item)));
+  assert.ok(reply.followUpQuestions.some((item) => /轉速|RPM/.test(item)));
+  assert.equal(reply.needsDiagnosis, true);
+  assert.match(reply.diagnosisUrl, /productscatid=833957866333/);
+});
+
+test('機台與轉速已提供時不強制導向診療填寫', () => {
+  const reply = ZirbaoCore.fallbackReply('不鏽鋼方管 50*50*2mm，使用冷鋸機，主軸轉速 120 RPM', knowledge);
+  assert.equal(reply.needsDiagnosis, false);
+  assert.equal(reply.diagnosisUrl, '');
+});
+
 test('sanitizer drops model supplied external URLs and resolves known card ids', () => {
   const reply = ZirbaoCore.sanitizeModelReply({
     mode: 'answer',
