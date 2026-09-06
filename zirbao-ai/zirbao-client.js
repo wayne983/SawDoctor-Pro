@@ -70,8 +70,14 @@
         addHistory('assistant', safety.message);
         return Object.assign({ source: 'local-safety' }, safety);
       }
+      var diagnosis = sanitizeReply(fallback(input));
+      if (diagnosis.needsDiagnosis) {
+        addHistory('user', input);
+        addHistory('assistant', diagnosis.message);
+        return Object.assign({ source: 'local-diagnosis' }, diagnosis);
+      }
       if (!endpoint || typeof transport !== 'function') {
-        var local = sanitizeReply(fallback(input));
+        var local = diagnosis;
         addHistory('user', input);
         addHistory('assistant', local.message);
         return Object.assign({ source: 'local-fallback' }, local);
