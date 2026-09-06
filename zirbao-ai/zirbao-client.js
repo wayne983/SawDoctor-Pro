@@ -27,6 +27,10 @@
     }
   }
 
+  function isAppsScriptCallbackOrigin(value) {
+    return value === 'null' || isTrustedAppsScriptOrigin(value);
+  }
+
   function requestId() {
     return 'zirbao_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
   }
@@ -92,7 +96,7 @@
   function createIframeTransport(documentRef, windowRef) {
     var pending = {};
     windowRef.addEventListener('message', function (event) {
-      if (!isTrustedAppsScriptOrigin(event.origin) || !event.data || event.data.type !== 'zirbao-ai-reply') return;
+      if (!isAppsScriptCallbackOrigin(event.origin) || !event.data || event.data.type !== 'zirbao-ai-reply') return;
       var request = pending[event.data.requestId];
       if (!request) return;
       windowRef.clearTimeout(request.timer);

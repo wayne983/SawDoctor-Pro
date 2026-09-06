@@ -80,3 +80,34 @@ test('iframe transport accepts the Apps Script sandbox subdomain callback', asyn
   assert.ok(reply);
   assert.equal(reply.ok, true);
 });
+
+test('iframe transport accepts an opaque Apps Script sandbox callback only for the pending request', async () => {
+  let messageHandler;
+  const frame = { name: 'zirbao-ai-frame' };
+  const documentRef = {
+    getElementById: () => frame,
+    createElement: () => ({ style: {}, append() {}, remove() {}, submit() {} }),
+    body: { append() {} }
+  };
+  const windowRef = {
+    addEventListener: (type, handler) => { if (type === 'message') messageHandler = handler; },
+    setTimeout: () => 1,
+    clearTimeout: () => {}
+  };
+  const transport = ZirbaoClient.createIframeTransport(documentRef, windowRef);
+  const pending = transport({ requestId: 'opaque-callback' }, 'https://script.google.com/macros/s/example/exec');
+  messageHandler({
+    origin: 'null',
+    data: { type: 'zirbao-ai-reply', requestId: 'other-request', ok: true, reply: {} }
+  });
+  messageHandler({
+    origin: 'null',
+    data: { type: 'zirbao-ai-reply', requestId: 'opaque-callback', ok: true, reply: {} }
+  });
+  const reply = await Promise.race([
+    pending,
+    new Promise((resolve) => setTimeout(() => resolve(null), 20))
+  ]);
+  assert.ok(reply);
+  assert.equal(reply.ok, true);
+});
