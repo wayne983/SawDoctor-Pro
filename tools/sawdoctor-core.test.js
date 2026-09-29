@@ -234,7 +234,7 @@ assert.deepEqual([...core.machineBrandsForType('木工圓鋸機')], [
   '邰展', '勝源', 'SAWSTOP', '萬代利', '博銓', '嘉元全', '麗達', '慶祥', '其他'
 ]);
 assert.deepEqual([...core.machineBrandsForType('鋁用')], [
-  '日意', '鋒和', '冠盛', '和和', '慶祥', '合濟', '中勝', '昱帆', '其他'
+  '日意', '鋒和', '冠盛', '和和', '慶祥', '合濟', '中勝', '昱帆', '勝榆', '其他'
 ]);
 assert.deepEqual([...core.machineBrandsForType('鐵工')], [
   '慶祥', '合濟', '捷順', '鋼鐵宿敵', '其他'
@@ -307,4 +307,64 @@ assert.ok(brandMessage.includes('機台種類：鋁用'));
 assert.ok(brandMessage.includes('設備品牌：測試機械'));
 assert.ok(brandMessage.includes('設備型號：CUSTOM-01'));
 assert.ok(brandMessage.includes('鋸片作動方式：由上而下（下壓式切削）'));
+
+const aluminumReading = core.getKnowledgeRecommendations({
+  material: 'aluminum',
+  issues: ['毛邊多', '黏屑塞齒']
+});
+assert.equal(aluminumReading.length, 3, 'multiple issues should return no more than three articles');
+assert.equal(new Set(aluminumReading.map((item) => item.url)).size, aluminumReading.length, 'article URLs should be unique');
+assert.equal(
+  aluminumReading[0].url,
+  'https://www.hawer-knife.com/ProductDetails.asp?produid=196',
+  'aluminum clogging should prioritize the matching material article'
+);
+assert.ok(
+  aluminumReading.some((item) => item.url === 'https://www.hawer-knife.com/ProductDetails.asp?produid=167'),
+  'aluminum burrs should retain a useful general cutting article'
+);
+assert.ok(Object.isFrozen(aluminumReading), 'recommendation results should be immutable');
+assert.ok(aluminumReading.every((item) => Object.isFrozen(item)), 'recommendation entries should be immutable');
+
+const plasticReading = core.getKnowledgeRecommendations({material: 'plastic', issues: ['毛邊多']});
+assert.equal(
+  plasticReading[0].url,
+  'https://www.hawer-knife.com/ProductDetails.asp?produid=243',
+  'plastic burrs should prioritize the PVC case'
+);
+
+const repeatedMatches = core.getKnowledgeRecommendations({
+  material: 'aluminum',
+  issues: ['切面粗糙', '毛邊多', '切割抖動']
+});
+assert.ok(repeatedMatches.length <= 3, 'recommendations should be capped at three');
+assert.equal(new Set(repeatedMatches.map((item) => item.url)).size, repeatedMatches.length, 'overlapping issues should not duplicate an article');
+
+for (const input of [
+  {material: 'aluminum', issues: []},
+  {material: 'aluminum', issues: ['暫無困擾']},
+  {material: 'aluminum', issues: ['不存在的困擾']}
+]) {
+  const result = core.getKnowledgeRecommendations(input);
+  assert.deepEqual([...result], [], 'empty or unsupported issues should not show reading recommendations');
+  assert.ok(Object.isFrozen(result), 'empty recommendation results should remain immutable');
+}
+
+const heatWhitelist = new Set([
+  'https://www.hawer-knife.com/ProductDetails.asp?produid=170',
+  'https://www.hawer-knife.com/ProductDetails.asp?produid=163',
+  'https://www.hawer-knife.com/ProductDetails.asp?produid=196'
+]);
+const heatReading = core.getKnowledgeRecommendations({material: 'aluminum', issues: ['發燙冒煙', '毛邊多']});
+assert.ok(heatReading.length > 0, 'overheating should offer safety-oriented reading');
+assert.ok(heatReading.every((item) => heatWhitelist.has(item.url)), 'danger results should not add non-whitelisted articles');
+
+const noiseWhitelist = new Set([
+  'https://www.hawer-knife.com/ProductDetails.asp?produid=182',
+  'https://www.hawer-knife.com/ProductDetails.asp?produid=240',
+  'https://www.hawer-knife.com/ProductDetails.asp?produid=239'
+]);
+const noiseReading = core.getKnowledgeRecommendations({material: 'aluminum', issues: ['噪音震動', '壽命短']});
+assert.ok(noiseReading.length > 0, 'noise and vibration should offer safety-oriented reading');
+assert.ok(noiseReading.every((item) => noiseWhitelist.has(item.url)), 'noise danger results should stay within their whitelist');
 console.log('SawDoctorCore diagnosis tests passed');
