@@ -34,12 +34,6 @@ assert.match(
   'mobile flow should show quick form, assessment, advanced form, then LINE actions'
 );
 
-assert.match(
-  html,
-  /renderAssessment\(assessment\);if\(assessment\.level==='danger'\)\{renderRecommendation\(null\)/,
-  'danger assessment should hide product recommendations'
-);
-
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
 assert.equal(scripts.length, 2, 'page should contain the core and application scripts');
 scripts.forEach((script, index) => assert.doesNotThrow(
@@ -147,8 +141,18 @@ assert.match(
 );
 assert.match(
   html,
-  /if\(assessment\.level==='danger'\)\{renderRecommendation\(null\);renderKnowledgeRecommendations\(\[\]\)\}/,
-  'danger discovered from advanced machine data should clear sales and non-safety reading cards'
+  /const dangerFromIssues=core\.classifyRisk\(input\.issues\)==='danger'/,
+  'advanced submission should distinguish issue danger from machine-only danger'
+);
+assert.match(
+  html,
+  /renderRecommendation\(assessment\.level==='danger'\?null:core\.getProductRecommendation\(input\)\)/,
+  'each advanced submission should hide or restore the product card from current assessment state'
+);
+assert.match(
+  html,
+  /renderKnowledgeRecommendations\(assessment\.level==='danger'&&!dangerFromIssues\?\[\]:core\.getKnowledgeRecommendations\(input\)\)/,
+  'issue danger should retain whitelisted reading while machine-only danger clears unrelated reading'
 );
 assert.match(html, /\.knowledge-title\{[^}]*overflow-wrap:anywhere/, 'long article titles should wrap on narrow screens');
 assert.match(
