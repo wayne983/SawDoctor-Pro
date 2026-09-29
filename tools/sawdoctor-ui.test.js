@@ -36,7 +36,7 @@ assert.match(
 
 assert.match(
   html,
-  /renderAssessment\(assessment\);if\(assessment\.level==='danger'\)renderRecommendation\(null\)/,
+  /renderAssessment\(assessment\);if\(assessment\.level==='danger'\)\{renderRecommendation\(null\)/,
   'danger assessment should hide product recommendations'
 );
 
@@ -103,6 +103,11 @@ assert.match(html, /id="machine-brand" name="machineBrand" disabled/);
 assert.match(html, /id="machine-brand-other-field"[^>]*hidden/);
 assert.match(html, /id="machine-brand-other" name="machineBrandOther"/);
 assert.match(html, /id="machine-model" name="machineModel"/);
+assert.match(
+  html,
+  /<label for="brand">鋸片品牌（自行填寫）<\/label><input id="brand" name="brand">/,
+  'blade brand should remain a free-text field with clearer copy'
+);
 assert.match(html, /machineType:\$\('machine-type'\)\.value/);
 assert.match(html, /machineBrand:\$\('machine-brand'\)\.value/);
 assert.match(
@@ -117,4 +122,38 @@ assert.match(html, /new Option\(brand==='其他'\?'其它':brand,brand\)/);
 assert.match(html, /brandSelect\.value=''/, 'changing machine type should clear a stale brand');
 assert.match(html, /otherField\.hidden=!isOther/);
 assert.match(html, /if\(!isOther\)otherInput\.value=''/);
+
+assert.match(
+  html,
+  /<section class="knowledge-recommendations" id="knowledge-recommendations"[^>]*hidden>[\s\S]*?鋸片醫生延伸閱讀[\s\S]*?id="knowledge-list"/,
+  'the result column should include a hidden official-reading section'
+);
+assert.match(
+  html,
+  /function renderKnowledgeRecommendations\(recommendations=\[\]\)\{[\s\S]*?list\.replaceChildren\(\)[\s\S]*?if\(!Array\.isArray\(recommendations\)\|\|!recommendations\.length\)\{card\.hidden=true;return\}/,
+  'rendering should clear stale articles and hide an empty card'
+);
+assert.match(html, /link\.target='_blank';link\.rel='noopener'/, 'official articles should open safely in a new tab');
+assert.match(html, /link\.textContent='查看官網文章'/, 'official article links should have meaningful copy');
+assert.match(
+  html,
+  /function invalidateQuickState\(\)[\s\S]*?renderRecommendation\(null\);renderKnowledgeRecommendations\(\[\]\)/,
+  'changing quick answers should clear product and reading recommendations'
+);
+assert.match(
+  html,
+  /renderRecommendation\(core\.getProductRecommendation\(quickState\)\);renderKnowledgeRecommendations\(core\.getKnowledgeRecommendations\(quickState\)\)/,
+  'quick assessment should render both product and official-reading recommendations'
+);
+assert.match(
+  html,
+  /if\(assessment\.level==='danger'\)\{renderRecommendation\(null\);renderKnowledgeRecommendations\(\[\]\)\}/,
+  'danger discovered from advanced machine data should clear sales and non-safety reading cards'
+);
+assert.match(html, /\.knowledge-title\{[^}]*overflow-wrap:anywhere/, 'long article titles should wrap on narrow screens');
+assert.match(
+  html,
+  /@media\(max-width:820px\)\{[\s\S]*?\.knowledge-link\{width:100%/,
+  'official-reading links should be full width on mobile'
+);
 console.log('SawDoctor UI tests passed');
